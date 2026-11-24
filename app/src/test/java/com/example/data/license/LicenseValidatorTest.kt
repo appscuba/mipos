@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class LicenseValidatorTest {
   @Test
   fun activeResponseConvertsUnixSecondsToMilliseconds() {
