@@ -15,10 +15,17 @@ data class LicenseValidationResult(
 class LicenseValidator(
   private val endpoint: String = PlanLimits.VALIDATION_URL,
 ) {
+  /**
+   * Contrato público del plugin PTLS:
+   * POST /wp-json/ptls/v1/app-validate
+   * { "device_id": "...", "phone": "..." }
+   *
+   * No se envían campos adicionales para mantener compatibilidad con el
+   * contrato del servidor y evitar depender de datos que el plugin no exige.
+   */
   suspend fun validate(
     deviceId: String,
     phone: String,
-    deviceFingerprint: String = "",
   ): LicenseValidationResult = withContext(Dispatchers.IO) {
     var connection: HttpURLConnection? = null
     try {
@@ -27,43 +34,55 @@ class LicenseValidator(
         connectTimeout = 12_000
         readTimeout = 12_000
         doOutput = true
+        instanceFollowRedirects = false
         setRequestProperty("Content-Type", "application/json; charset=utf-8")
         setRequestProperty("Accept", "application/json")
         setRequestProperty("Cache-Control", "no-store")
       }
+
       val payload = JSONObject()
         .put("device_id", deviceId)
-        .put("phone", phone)
-        .put("product", PlanLimits.PRODUCT_SLUG)
-        .put("device_fingerprint", deviceFingerprint)
+        .put("phone", phone.trim())
         .toString()
+
       connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
       val responseCode = connection.responseCode
-      if (responseCode == 429 || responseCode >= 500) {
-        return@withContext LicenseValidationResult(
-          status = "unavailable",
-          message = "El servidor no está disponible temporalmente. Inténtalo más tarde.",
-        )
+      if (responseCode == 429 || responseCode >= 500 || responseCode in 300..399) {
+        return@withContext unavailable()
       }
 
       val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
       val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+      if (body.isBlank()) return@withContext unavailable()
+
       val json = JSONObject(body)
       val rawStatus = json.optString("status", json.optString("code", "unavailable"))
+        .trim()
+        .lowercase()
       val status = when (rawStatus) {
         "active", "revoked", "expired", "invalid" -> rawStatus
         else -> "unavailable"
       }
-      val expiresAt = json.optLong("expira_ts", 0L).let { if (it > 0L) it * 1000L else 0L }
-      LicenseValidationResult(status = status, expiresAt = expiresAt)
-    } catch (_: Exception) {
+
+      // El plugin entrega expira_ts como timestamp Unix en segundos.
+      val expiresAtSeconds = json.optLong("expira_ts", 0L)
+      val expiresAt = if (expiresAtSeconds > 0L) expiresAtSeconds * 1_000L else 0L
+
       LicenseValidationResult(
-        status = "unavailable",
-        message = "No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo.",
+        status = status,
+        expiresAt = expiresAt,
+        message = json.optString("message").takeIf { it.isNotBlank() },
       )
+    } catch (_: Exception) {
+      unavailable()
     } finally {
       connection?.disconnect()
     }
   }
+
+  private fun unavailable() = LicenseValidationResult(
+    status = "unavailable",
+    message = "No se pudo validar la licencia. Comprueba tu conexión e inténtalo de nuevo.",
+  )
 }
