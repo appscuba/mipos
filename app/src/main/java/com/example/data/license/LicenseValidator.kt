@@ -18,9 +18,9 @@ class LicenseValidator(
   /**
    * Contrato público del plugin PTLS:
    * POST /wp-json/ptls/v1/app-validate
-   * { "device_id": "...", "phone": "..." }
+   * { "device_id": "...", "license_key": "..." }
    */
-  suspend fun validate(deviceId: String, phone: String): LicenseValidationResult =
+  suspend fun validate(deviceId: String, licenseKey: String): LicenseValidationResult =
     withContext(Dispatchers.IO) {
       var connection: HttpURLConnection? = null
       try {
@@ -37,7 +37,7 @@ class LicenseValidator(
 
         val payload = JSONObject()
           .put("device_id", deviceId)
-          .put("phone", phone.trim())
+          .put("license_key", licenseKey.trim())
           .toString()
         connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
