@@ -8,6 +8,7 @@ workflows:
       - name: Preparar Gradle Wrapper y Keystore Debug
         script: |
           set -e
+          cd "${CM_BUILD_DIR:-.}"
           if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null \
               || base64 -D -i debug.keystore.base64 -o debug.keystore 2>/dev/null \
@@ -15,7 +16,8 @@ workflows:
               || rm -f debug.keystore
           fi
           if [ ! -s debug.keystore ]; then
-            keytool -genkeypair -noprompt \
+            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
+            "$KEYTOOL_BIN" -genkeypair -noprompt \
               -keystore debug.keystore \
               -storepass android \
               -alias androiddebugkey \
@@ -32,9 +34,24 @@ workflows:
           chmod +x gradlew
       - name: Ejecutar pruebas unitarias y Robolectric
         script: |
+          cd "${CM_BUILD_DIR:-.}"
           ./gradlew :app:testDebugUnitTest
       - name: Compilar APK Debug
         script: |
+          set -e
+          cd "${CM_BUILD_DIR:-.}"
+          if [ ! -s debug.keystore ]; then
+            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
+            "$KEYTOOL_BIN" -genkeypair -noprompt \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
           ./gradlew :app:assembleDebug
     artifacts:
       - app/build/outputs/apk/debug/*.apk
@@ -49,6 +66,7 @@ workflows:
       - name: Preparar entorno de firma y compilación
         script: |
           set -e
+          cd "${CM_BUILD_DIR:-.}"
           if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null \
               || base64 -D -i debug.keystore.base64 -o debug.keystore 2>/dev/null \
@@ -56,7 +74,8 @@ workflows:
               || rm -f debug.keystore
           fi
           if [ ! -s debug.keystore ]; then
-            keytool -genkeypair -noprompt \
+            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
+            "$KEYTOOL_BIN" -genkeypair -noprompt \
               -keystore debug.keystore \
               -storepass android \
               -alias androiddebugkey \
@@ -77,6 +96,7 @@ workflows:
           fi
       - name: Compilar APK y AAB Release
         script: |
+          cd "${CM_BUILD_DIR:-.}"
           if [ -z "$KEYSTORE_PATH" ] && [ -n "$CM_KEYSTORE_PATH" ]; then
             export KEYSTORE_PATH="$CM_KEYSTORE_PATH"
             export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
