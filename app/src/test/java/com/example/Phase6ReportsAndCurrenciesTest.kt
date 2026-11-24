@@ -76,6 +76,7 @@ class Phase6ReportsAndCurrenciesTest {
         allowNegativeStock = false,
       ),
     )
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Caja de pruebas")
   }
 
   @After
