@@ -536,9 +536,9 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithTag("pos_open_cart_button").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
-    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT")
-      .performScrollTo()
-      .performClick()
+    composeTestRule.onNodeWithTag("pos_checkout_scroll")
+      .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
+    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
