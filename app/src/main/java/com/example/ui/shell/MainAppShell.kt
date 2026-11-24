@@ -402,6 +402,7 @@ fun MainAppShell(
                 factory = InventoryViewModel.Factory(
                   businessIdFlow = activeBusinessIdFlow,
                   inventoryRepository = container.inventoryRepository,
+                  licenseRepository = container.licenseRepository,
                 ),
               )
               InventoryScreen(
