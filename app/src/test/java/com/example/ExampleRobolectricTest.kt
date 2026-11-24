@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.local.db.AppDatabase
 import org.junit.Assert.assertEquals
@@ -511,5 +512,116 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithTag("receipt_title").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("receipt_title").assertTextEquals("Comprobante V-00001")
+  }
+
+  @Test
+  fun `categorias permite editar y eliminar y POS calcula vuelto con 100 en efectivo y transferencia`() {
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("setup_business_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("setup_business_name_input").performScrollTo().performTextInput("Mini Market")
+    composeTestRule.onNodeWithTag("setup_submit_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // 1. Inventario -> Categorías -> Editar y Eliminar
+    composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("inventory_categories_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("inventory_categories_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("category_edit_btn_1").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("category_edit_btn_1").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("category_name_input").performScrollTo().performTextReplacement("Comestibles")
+    composeTestRule.onNodeWithTag("category_add_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithText("Comestibles").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // Eliminar categoría id 1
+    composeTestRule.onNodeWithTag("category_delete_btn_1").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("category_delete_confirm_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("category_delete_confirm_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("category_edit_btn_1").fetchSemanticsNodes().isEmpty()
+    }
+    composeTestRule.onNodeWithText("Cerrar").performClick()
+
+    // 2. Crear producto de 80 CUP para probar pago con 100
+    composeTestRule.onNodeWithTag("inventory_add_product_fab").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("product_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("product_modality_UNIT").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("product_name_input").performTextInput("Jugo")
+    composeTestRule.onNodeWithTag("product_sale_price_input").performScrollTo().performTextInput("80")
+    composeTestRule.onNodeWithTag("product_cost_input").performScrollTo().performTextInput("50")
+    composeTestRule.onNodeWithTag("product_initial_stock_input").performScrollTo().performTextInput("10")
+    composeTestRule.onNodeWithTag("product_save_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithText("1 productos").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // 3. POS -> añadir Jugo (80 CUP) -> probar vuelto con 100 en Efectivo y en Transferencia
+    composeTestRule.onNodeWithTag("nav_tab_pos").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_quick_add_1").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_quick_add_1").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_open_cart_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_tendered_chip_100").fetchSemanticsNodes().isNotEmpty()
+    }
+    // En Efectivo con 100 -> devuelve 20.00 CUP
+    composeTestRule.onNodeWithTag("pos_tendered_chip_100").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_change_to_return_text").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_change_to_return_text").assertTextEquals("20.00 CUP")
+
+    // En Transferencia con 100 -> también calcula devolver 20.00 CUP
+    composeTestRule.onNodeWithTag("pos_pay_mode_TRANSFER").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_tendered_chip_100").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_change_to_return_text").assertTextEquals("20.00 CUP")
+
+    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("receipt_title").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("receipt_close_button").performClick()
+
+    // 4. Ajustes -> Restablecer sistema en cero con advertencia
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_settings").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_settings").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("settings_reset_system_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("settings_reset_system_button").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("settings_reset_confirm_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("settings_reset_confirm_button").performClick()
+
+    // Debe regresar limpio a Setup inicial
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("setup_business_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
   }
 }

@@ -105,7 +105,7 @@ class SetupViewModel(
             allowNegativeStock = state.allowNegativeStock,
           ),
         )
-        _uiState.update { it.copy(isSaving = false) }
+        _uiState.value = SetupUiState(themeMode = state.themeMode)
         onCompleted()
       } catch (e: Exception) {
         _uiState.update {

@@ -71,4 +71,13 @@ class AppPreferencesDataStore(context: Context) {
       prefs[Keys.LAST_BACKUP_TIMESTAMP] = timestamp
     }
   }
+
+  suspend fun resetAllWorkspaceData() {
+    dataStore.edit { prefs ->
+      prefs[Keys.ONBOARDING_COMPLETED] = false
+      prefs[Keys.ACTIVE_BUSINESS_ID] = 0L
+      prefs[Keys.ACTIVE_USER_ID] = 0L
+      prefs[Keys.LAST_BACKUP_TIMESTAMP] = 0L
+    }
+  }
 }

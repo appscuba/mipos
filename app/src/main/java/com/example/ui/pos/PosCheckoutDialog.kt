@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
@@ -39,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.core.money.MoneyMath
-import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.local.db.entity.ExchangeRateEntity
 import com.example.data.repository.SalePaymentInput
 import com.example.ui.theme.MonoMetricMedium
@@ -78,6 +79,15 @@ private val MIXED_METHOD_OPTIONS = listOf(
   "TRANSFER" to "Transferencia",
   "USD" to "USD",
   "OTHER" to "Otro",
+)
+
+private val BASE_QUICK_BILLS = listOf("50", "100", "200", "500", "1000")
+private val USD_QUICK_BILLS = listOf("5", "10", "20", "50", "100")
+
+private data class PaymentComputationResult(
+  val appliedPayments: List<SalePaymentInput>,
+  val enteredTotalBase: BigDecimal,
+  val changeBase: BigDecimal,
 )
 
 @Composable
@@ -148,6 +158,17 @@ fun PosCartCheckoutContent(
   onConfirmSale: (List<SalePaymentInput>, String) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val usdRate = remember(state.exchangeRates) {
+    state.exchangeRates.firstOrNull { it.currencyCode == "USD" }?.rateToBase ?: BigDecimal("1.0000")
+  }
+  val exactUsdAmount = remember(state.totalBase, usdRate) {
+    if (usdRate > BigDecimal.ZERO) {
+      state.totalBase.divide(usdRate, MoneyMath.MONEY_SCALE, RoundingMode.HALF_UP)
+    } else {
+      state.totalBase
+    }
+  }
+
   var discountText by remember(state.discountBase) {
     mutableStateOf(
       if (state.discountBase > BigDecimal.ZERO) MoneyMath.formatQuantity(state.discountBase) else "",
@@ -160,6 +181,13 @@ fun PosCartCheckoutContent(
   var cashTenderedText by remember(state.totalBase) {
     mutableStateOf(MoneyMath.formatQuantity(state.totalBase))
   }
+  var transferTenderedText by remember(state.totalBase) {
+    mutableStateOf(MoneyMath.formatQuantity(state.totalBase))
+  }
+  var usdTenderedText by remember(exactUsdAmount) {
+    mutableStateOf(MoneyMath.formatQuantity(exactUsdAmount))
+  }
+
   var mixedAmountText by remember { mutableStateOf("") }
   var mixedMethod by remember { mutableStateOf("CASH") }
   var mixedCurrency by remember { mutableStateOf(state.primaryCurrency) }
@@ -167,12 +195,8 @@ fun PosCartCheckoutContent(
   var notes by remember { mutableStateOf("") }
   var errorText by remember { mutableStateOf<String?>(null) }
 
-  val usdRate = remember(state.exchangeRates) {
-    state.exchangeRates.firstOrNull { it.currencyCode == "USD" }?.rateToBase ?: BigDecimal("1.0000")
-  }
-
-  // Live payment calculation
-  val computedPaymentsResult: Pair<List<SalePaymentInput>, BigDecimal> = when (paymentMode) {
+  // Live payment calculation across all modes
+  val paymentCalc: PaymentComputationResult = when (paymentMode) {
     CheckoutPaymentMode.CASH -> {
       val tendered = MoneyMath.parseMoneyOrNull(cashTenderedText) ?: MoneyMath.ZERO
       val applied = tendered.min(state.totalBase).max(MoneyMath.ZERO)
@@ -185,60 +209,108 @@ fun PosCartCheckoutContent(
             originalAmount = applied,
             exchangeRateToBase = BigDecimal("1.0000"),
             isPhysicalCash = true,
+            note = if (change > BigDecimal.ZERO) {
+              "Recibido ${MoneyMath.format(tendered, state.primaryCurrency)} • Vuelto ${MoneyMath.format(change, state.primaryCurrency)}"
+            } else {
+              ""
+            },
           ),
         )
       } else {
         emptyList()
       }
-      list to change
+      PaymentComputationResult(list, tendered, change)
     }
     CheckoutPaymentMode.TRANSFER -> {
-      val list = if (state.totalBase > BigDecimal.ZERO) {
+      val tendered = MoneyMath.parseMoneyOrNull(transferTenderedText) ?: MoneyMath.ZERO
+      val applied = tendered.min(state.totalBase).max(MoneyMath.ZERO)
+      val change = tendered.subtract(state.totalBase).max(MoneyMath.ZERO)
+      val list = if (applied > BigDecimal.ZERO) {
         listOf(
           SalePaymentInput(
             paymentMethod = "TRANSFER",
             currencyCode = state.primaryCurrency,
-            originalAmount = state.totalBase,
+            originalAmount = applied,
             exchangeRateToBase = BigDecimal("1.0000"),
             isPhysicalCash = false,
+            note = if (change > BigDecimal.ZERO) {
+              "Transferido ${MoneyMath.format(tendered, state.primaryCurrency)} • Devolver ${MoneyMath.format(change, state.primaryCurrency)}"
+            } else {
+              ""
+            },
           ),
         )
       } else {
         emptyList()
       }
-      list to MoneyMath.ZERO
+      PaymentComputationResult(list, tendered, change)
     }
     CheckoutPaymentMode.USD -> {
-      val usdAmount = if (usdRate > BigDecimal.ZERO) {
+      val tenderedUsd = MoneyMath.parseMoneyOrNull(usdTenderedText) ?: MoneyMath.ZERO
+      val tenderedBase = MoneyMath.convertToBase(tenderedUsd, usdRate)
+      val appliedUsd = if (tenderedBase > state.totalBase && usdRate > BigDecimal.ZERO) {
         state.totalBase.divide(usdRate, MoneyMath.MONEY_SCALE, RoundingMode.HALF_UP)
       } else {
-        state.totalBase
+        tenderedUsd
       }
-      val list = if (state.totalBase > BigDecimal.ZERO) {
+      val changeBase = tenderedBase.subtract(state.totalBase).max(MoneyMath.ZERO)
+      val list = if (appliedUsd > BigDecimal.ZERO) {
         listOf(
           SalePaymentInput(
             paymentMethod = "USD",
             currencyCode = "USD",
-            originalAmount = usdAmount,
+            originalAmount = appliedUsd,
             exchangeRateToBase = usdRate,
             isPhysicalCash = false,
+            note = if (changeBase > BigDecimal.ZERO) {
+              "Recibido ${MoneyMath.format(tenderedUsd, "USD")} • Devolver ${MoneyMath.format(changeBase, state.primaryCurrency)}"
+            } else {
+              ""
+            },
           ),
         )
       } else {
         emptyList()
       }
-      list to MoneyMath.ZERO
+      PaymentComputationResult(list, tenderedBase, changeBase)
     }
-    CheckoutPaymentMode.CREDIT -> emptyList<SalePaymentInput>() to MoneyMath.ZERO
-    CheckoutPaymentMode.MIXED -> mixedPayments.toList() to MoneyMath.ZERO
+    CheckoutPaymentMode.CREDIT -> {
+      PaymentComputationResult(emptyList(), MoneyMath.ZERO, MoneyMath.ZERO)
+    }
+    CheckoutPaymentMode.MIXED -> {
+      var remainingToCover = state.totalBase
+      var totalEnteredBase = MoneyMath.ZERO
+      val applied = mutableListOf<SalePaymentInput>()
+      for (entry in mixedPayments) {
+        val entryBase = MoneyMath.convertToBase(entry.originalAmount, entry.exchangeRateToBase)
+        totalEnteredBase = MoneyMath.add(totalEnteredBase, entryBase)
+        if (remainingToCover > BigDecimal.ZERO) {
+          if (entryBase <= remainingToCover) {
+            applied.add(entry)
+            remainingToCover = MoneyMath.subtract(remainingToCover, entryBase)
+          } else {
+            val cappedOriginal = if (entry.exchangeRateToBase > BigDecimal.ZERO) {
+              remainingToCover.divide(entry.exchangeRateToBase, MoneyMath.MONEY_SCALE, RoundingMode.HALF_UP)
+            } else {
+              remainingToCover
+            }
+            if (cappedOriginal > BigDecimal.ZERO) {
+              applied.add(entry.copy(originalAmount = cappedOriginal))
+            }
+            remainingToCover = MoneyMath.ZERO
+          }
+        }
+      }
+      val change = totalEnteredBase.subtract(state.totalBase).max(MoneyMath.ZERO)
+      PaymentComputationResult(applied, totalEnteredBase, change)
+    }
   }
 
-  val paidBasePreview = computedPaymentsResult.first.fold(MoneyMath.ZERO) { acc, p ->
+  val paidBasePreview = paymentCalc.appliedPayments.fold(MoneyMath.ZERO) { acc, p ->
     MoneyMath.add(acc, MoneyMath.convertToBase(p.originalAmount, p.exchangeRateToBase))
   }
-  val changePreview = computedPaymentsResult.second
+  val changePreview = paymentCalc.changeBase
   val pendingDebtPreview = MoneyMath.subtract(state.totalBase, paidBasePreview).max(MoneyMath.ZERO)
-
   val selectedCustomer = state.customers.firstOrNull { it.id == state.selectedCustomerId }
 
   Column(
@@ -352,15 +424,63 @@ fun PosCartCheckoutContent(
         }
       }
 
-      if (paymentMode == CheckoutPaymentMode.CASH) {
+      if (paymentMode == CheckoutPaymentMode.CASH || paymentMode == CheckoutPaymentMode.TRANSFER || paymentMode == CheckoutPaymentMode.USD) {
+        val isUsdMode = paymentMode == CheckoutPaymentMode.USD
+        val activeCurrency = if (isUsdMode) "USD" else state.primaryCurrency
+        val currentTenderedText = when (paymentMode) {
+          CheckoutPaymentMode.CASH -> cashTenderedText
+          CheckoutPaymentMode.TRANSFER -> transferTenderedText
+          CheckoutPaymentMode.USD -> usdTenderedText
+          else -> ""
+        }
+        val onTenderedUpdate: (String) -> Unit = { newValue ->
+          when (paymentMode) {
+            CheckoutPaymentMode.CASH -> cashTenderedText = newValue
+            CheckoutPaymentMode.TRANSFER -> transferTenderedText = newValue
+            CheckoutPaymentMode.USD -> usdTenderedText = newValue
+            else -> {}
+          }
+          errorText = null
+        }
+
+        val fieldLabel = when (paymentMode) {
+          CheckoutPaymentMode.CASH -> "¿Con cuánto paga? — Efectivo recibido (${state.primaryCurrency})"
+          CheckoutPaymentMode.TRANSFER -> "¿Cuánto transfirió / paga? — Transferencia (${state.primaryCurrency})"
+          CheckoutPaymentMode.USD -> "¿Cuánto entrega en USD? (Tasa: ${MoneyMath.formatQuantity(usdRate)} ${state.primaryCurrency})"
+          else -> ""
+        }
+
         OutlinedTextField(
-          value = cashTenderedText,
-          onValueChange = { cashTenderedText = it },
-          label = { Text("Efectivo recibido (${state.primaryCurrency})") },
+          value = currentTenderedText,
+          onValueChange = onTenderedUpdate,
+          label = { Text(fieldLabel) },
           singleLine = true,
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
           modifier = Modifier.fillMaxWidth().testTag("pos_cash_tendered_input"),
         )
+
+        // Quick denomination chips (100, 200, 500, 1000, Exacto)
+        val quickBills = if (isUsdMode) USD_QUICK_BILLS else BASE_QUICK_BILLS
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+          SuggestionChip(
+            onClick = {
+              val exact = if (isUsdMode) exactUsdAmount else state.totalBase
+              onTenderedUpdate(MoneyMath.formatQuantity(exact))
+            },
+            label = { Text("Exacto") },
+            modifier = Modifier.testTag("pos_tendered_chip_exact"),
+          )
+          quickBills.forEach { bill ->
+            SuggestionChip(
+              onClick = { onTenderedUpdate(bill) },
+              label = { Text("$bill $activeCurrency") },
+              modifier = Modifier.testTag("pos_tendered_chip_$bill"),
+            )
+          }
+        }
       }
 
       if (paymentMode == CheckoutPaymentMode.MIXED) {
@@ -416,22 +536,17 @@ fun PosCartCheckoutContent(
                   val amt = MoneyMath.parseMoneyOrNull(mixedAmountText)
                   if (amt != null && amt > BigDecimal.ZERO) {
                     val rate = state.exchangeRates.firstOrNull { it.currencyCode == mixedCurrency }?.rateToBase ?: BigDecimal.ONE
-                    val newPaymentBase = MoneyMath.convertToBase(amt, rate)
-                    if (MoneyMath.add(paidBasePreview, newPaymentBase) > state.totalBase) {
-                      errorText = "La suma de pagos supera el total de la venta."
-                    } else {
-                      errorText = null
-                      mixedPayments.add(
-                        SalePaymentInput(
-                          paymentMethod = mixedMethod,
-                          currencyCode = mixedCurrency,
-                          originalAmount = amt,
-                          exchangeRateToBase = rate,
-                          isPhysicalCash = mixedMethod == "CASH",
-                        ),
-                      )
-                      mixedAmountText = ""
-                    }
+                    errorText = null
+                    mixedPayments.add(
+                      SalePaymentInput(
+                        paymentMethod = mixedMethod,
+                        currencyCode = mixedCurrency,
+                        originalAmount = amt,
+                        exchangeRateToBase = rate,
+                        isPhysicalCash = mixedMethod == "CASH",
+                      ),
+                    )
+                    mixedAmountText = ""
                   }
                 },
                 shape = RoundedCornerShape(10.dp),
@@ -458,6 +573,82 @@ fun PosCartCheckoutContent(
                   Icon(Icons.Filled.DeleteOutline, contentDescription = "Quitar pago", tint = MaterialTheme.colorScheme.error)
                 }
               }
+            }
+          }
+        }
+      }
+
+      // Highlighted Change / Remaining banner (visible immediately for Cash, Transfer, USD, Mixed)
+      if (paymentMode != CheckoutPaymentMode.CREDIT) {
+        if (changePreview > BigDecimal.ZERO) {
+          Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().testTag("pos_change_to_return_banner"),
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                Icon(
+                  Icons.Filled.Payments,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Column {
+                  Text(
+                    text = if (paymentMode == CheckoutPaymentMode.TRANSFER) {
+                      "A devolver al cliente"
+                    } else {
+                      "Cambio / Vuelto a devolver"
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                  )
+                  Text(
+                    text = "Paga con ${MoneyMath.format(paymentCalc.enteredTotalBase, state.primaryCurrency)} de ${MoneyMath.format(state.totalBase, state.primaryCurrency)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f),
+                  )
+                }
+              }
+              Text(
+                text = MoneyMath.format(changePreview, state.primaryCurrency),
+                style = MaterialTheme.typography.titleLarge.merge(MonoMetricMedium),
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.testTag("pos_change_to_return_text"),
+              )
+            }
+          }
+        } else if (pendingDebtPreview > BigDecimal.ZERO && paymentCalc.enteredTotalBase > BigDecimal.ZERO) {
+          Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)),
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Falta por cubrir (pasa a crédito)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+              )
+              Text(
+                text = MoneyMath.format(pendingDebtPreview, state.primaryCurrency),
+                style = MonoMetricMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+              )
             }
           }
         }
@@ -546,9 +737,12 @@ fun PosCartCheckoutContent(
             CheckoutSummaryRow("Descuento", "-${MoneyMath.format(state.discountBase, state.primaryCurrency)}")
           }
           CheckoutSummaryRow("Total a cobrar", MoneyMath.format(state.totalBase, state.primaryCurrency), bold = true)
-          CheckoutSummaryRow("Pagado", MoneyMath.format(paidBasePreview, state.primaryCurrency))
+          if (paymentCalc.enteredTotalBase > BigDecimal.ZERO && paymentMode != CheckoutPaymentMode.CREDIT) {
+            CheckoutSummaryRow("Recibido", MoneyMath.format(paymentCalc.enteredTotalBase, state.primaryCurrency))
+          }
+          CheckoutSummaryRow("Aplicado a venta", MoneyMath.format(paidBasePreview, state.primaryCurrency))
           if (changePreview > BigDecimal.ZERO) {
-            CheckoutSummaryRow("Cambio / Vuelto", MoneyMath.format(changePreview, state.primaryCurrency))
+            CheckoutSummaryRow("Devolver (Cambio)", MoneyMath.format(changePreview, state.primaryCurrency), bold = true)
           }
           if (pendingDebtPreview > BigDecimal.ZERO) {
             CheckoutSummaryRow(
@@ -580,7 +774,7 @@ fun PosCartCheckoutContent(
               errorText = "Selecciona un cliente para registrar el saldo a crédito."
             else -> {
               errorText = null
-              onConfirmSale(computedPaymentsResult.first, notes)
+              onConfirmSale(paymentCalc.appliedPayments, notes)
             }
           }
         },

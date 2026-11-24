@@ -223,8 +223,35 @@ class InventoryRepository(private val db: AppDatabase) {
             colorHex = colorHex,
           ),
         )
+        securityDao.insertAuditLog(
+          AuditLogEntity(
+            businessId = businessId,
+            action = "CATEGORY_UPDATED",
+            entityType = "CATEGORY",
+            entityId = categoryId,
+            details = "Categoría actualizada: ${current.name} -> $trimmed",
+          ),
+        )
         categoryId
       }
+    }
+  }
+
+  suspend fun deleteCategory(businessId: Long, categoryId: Long) {
+    db.withTransaction {
+      val category = inventoryDao.getCategoryById(categoryId) ?: return@withTransaction
+      val now = System.currentTimeMillis()
+      inventoryDao.clearCategoryFromProducts(categoryId, now)
+      inventoryDao.deleteCategoryById(categoryId)
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          action = "CATEGORY_DELETED",
+          entityType = "CATEGORY",
+          entityId = categoryId,
+          details = "Categoría eliminada: ${category.name}",
+        ),
+      )
     }
   }
 

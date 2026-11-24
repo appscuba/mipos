@@ -33,6 +33,15 @@ interface InventoryDao {
   @Query("UPDATE categories SET isActive = 0 WHERE id = :categoryId")
   suspend fun deactivateCategory(categoryId: Long)
 
+  @Query("SELECT COUNT(*) FROM products WHERE categoryId = :categoryId AND isActive = 1")
+  suspend fun countProductsInCategory(categoryId: Long): Int
+
+  @Query("UPDATE products SET categoryId = NULL, updatedAt = :updatedAt WHERE categoryId = :categoryId")
+  suspend fun clearCategoryFromProducts(categoryId: Long, updatedAt: Long)
+
+  @Query("DELETE FROM categories WHERE id = :categoryId")
+  suspend fun deleteCategoryById(categoryId: Long)
+
   @Query("SELECT * FROM products WHERE businessId = :businessId AND isActive = 1 ORDER BY name ASC")
   fun observeActiveProducts(businessId: Long): Flow<List<ProductEntity>>
 

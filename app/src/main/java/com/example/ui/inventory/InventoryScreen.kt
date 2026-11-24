@@ -299,10 +299,16 @@ fun InventoryScreen(
   if (showCategoriesDialog) {
     CategoriesDialog(
       categories = state.categories,
-      onSaveCategory = { name, desc, color ->
-        viewModel.saveCategory(name = name, description = desc, colorHex = color)
+      productCountByCategory = state.productCountsByCategory,
+      onSaveCategory = { categoryId, name, desc, color ->
+        viewModel.saveCategory(
+          name = name,
+          description = desc,
+          colorHex = color,
+          categoryId = categoryId,
+        )
       },
-      onArchiveCategory = viewModel::archiveCategory,
+      onDeleteCategory = viewModel::deleteCategory,
       onDismiss = { showCategoriesDialog = false },
     )
   }

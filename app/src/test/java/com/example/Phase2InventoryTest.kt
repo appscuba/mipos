@@ -255,5 +255,23 @@ class Phase2InventoryTest {
     // 2.5 lb * 400.00 = 1,000.00 CUP
     assertEquals(0, BigDecimal("1000.00").compareTo(overview.totalInventoryValueBase))
     assertTrue(overview.categories.any { it.name == "Lácteos" })
+
+    // Editar categoría existente
+    inventoryRepo.saveCategory(
+      businessId = businessId,
+      categoryId = catId,
+      name = "Lácteos y Quesos",
+      description = "Frescos",
+      colorHex = "#38BDF8",
+    )
+    val afterEdit = inventoryRepo.observeInventoryOverview(businessId).first()
+    assertTrue(afterEdit.categories.any { it.id == catId && it.name == "Lácteos y Quesos" })
+
+    // Eliminar categoría y verificar que el producto sigue existiendo sin categoría
+    inventoryRepo.deleteCategory(businessId, catId)
+    val afterDelete = inventoryRepo.observeInventoryOverview(businessId).first()
+    assertTrue(afterDelete.categories.none { it.id == catId })
+    val queso = afterDelete.items.first { it.product.name == "Queso" }.product
+    assertEquals(null, queso.categoryId)
   }
 }

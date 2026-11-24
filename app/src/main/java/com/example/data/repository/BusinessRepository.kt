@@ -18,11 +18,13 @@ import com.example.data.local.db.entity.RolePermissionCrossRef
 import com.example.data.local.db.entity.SupplierEntity
 import com.example.data.local.db.entity.UserEntity
 import com.example.data.preferences.AppPreferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
 data class InitialBusinessSetupRequest(
@@ -439,6 +441,13 @@ class BusinessRepository(
         ),
       )
     }
+  }
+
+  suspend fun resetAllSystemData() {
+    withContext(Dispatchers.IO) {
+      db.clearAllTables()
+    }
+    preferences.resetAllWorkspaceData()
   }
 
   private suspend fun seedSystemRolesAndPermissions() {

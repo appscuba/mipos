@@ -28,19 +28,28 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +69,7 @@ fun BusinessSettingsScreen(
   modifier: Modifier = Modifier,
 ) {
   val state by viewModel.uiState.collectAsStateWithLifecycle()
+  var showResetWarningDialog by remember { mutableStateOf(false) }
   val picker = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia(),
   ) { uri: Uri? ->
@@ -243,7 +253,7 @@ fun BusinessSettingsScreen(
 
       Button(
         onClick = viewModel::saveSettings,
-        enabled = !state.isSaving,
+        enabled = !state.isSaving && !state.isResetting,
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier
           .fillMaxWidth()
@@ -259,7 +269,121 @@ fun BusinessSettingsScreen(
         }
       }
 
+      Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+          containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+        ),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Icon(
+              Icons.Filled.WarningAmber,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.error,
+            )
+            Text(
+              text = "Zona de Peligro • Restablecer sistema",
+              style = MaterialTheme.typography.titleMedium,
+              color = MaterialTheme.colorScheme.error,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+          Text(
+            text = "Deja todo Stock+ en cero. Elimina permanentemente productos, categorías, ventas, compras, clientes, deudas, movimientos de caja, gastos, usuarios y configuración.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          OutlinedButton(
+            onClick = { showResetWarningDialog = true },
+            enabled = !state.isResetting && !state.isSaving,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(48.dp)
+              .testTag("settings_reset_system_button"),
+          ) {
+            Icon(Icons.Filled.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Restablecer todo (Dejar en cero)", fontWeight = FontWeight.SemiBold)
+          }
+        }
+      }
+
       Spacer(Modifier.height(16.dp))
     }
+  }
+
+  if (showResetWarningDialog) {
+    AlertDialog(
+      onDismissRequest = { if (!state.isResetting) showResetWarningDialog = false },
+      modifier = Modifier.testTag("settings_reset_warning_dialog"),
+      icon = {
+        Icon(
+          Icons.Filled.WarningAmber,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.error,
+        )
+      },
+      title = {
+        Text(
+          "Advertencia: Dejar todo en cero",
+          color = MaterialTheme.colorScheme.error,
+          fontWeight = FontWeight.Bold,
+        )
+      },
+      text = {
+        Text(
+          "¿Estás seguro de que deseas restablecer todo el sistema?\n\n" +
+            "Esta acción borrará por completo:\n" +
+            "• Todos los productos, precios y categorías\n" +
+            "• Historial de ventas, compras y movimientos\n" +
+            "• Clientes, proveedores y deudas pendientes\n" +
+            "• Cajas diarias, gastos, usuarios y configuración\n\n" +
+            "No podrás recuperar estos datos a menos que tengas un respaldo exportado previamente.",
+        )
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            viewModel.resetAllSystemData {
+              showResetWarningDialog = false
+            }
+          },
+          enabled = !state.isResetting,
+          colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
+          modifier = Modifier.testTag("settings_reset_confirm_button"),
+        ) {
+          if (state.isResetting) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(18.dp),
+              strokeWidth = 2.dp,
+              color = MaterialTheme.colorScheme.onError,
+            )
+          } else {
+            Text("Sí, borrar todo")
+          }
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = { showResetWarningDialog = false },
+          enabled = !state.isResetting,
+          modifier = Modifier.testTag("settings_reset_cancel_button"),
+        ) {
+          Text("Cancelar")
+        }
+      },
+    )
   }
 }

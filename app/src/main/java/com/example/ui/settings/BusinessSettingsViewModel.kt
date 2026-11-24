@@ -28,6 +28,7 @@ data class BusinessSettingsUiState(
   val allowNegativeStock: Boolean = false,
   val themeMode: ThemeMode = ThemeMode.DARK,
   val isSaving: Boolean = false,
+  val isResetting: Boolean = false,
   val statusMessage: String? = null,
   val isError: Boolean = false,
 )
@@ -127,6 +128,26 @@ class BusinessSettingsViewModel(
           it.copy(
             isSaving = false,
             statusMessage = e.message ?: "Error al guardar cambios.",
+            isError = true,
+          )
+        }
+      }
+    }
+  }
+
+  fun resetAllSystemData(onComplete: () -> Unit = {}) {
+    _uiState.update { it.copy(isResetting = true, statusMessage = null, isError = false) }
+    viewModelScope.launch {
+      try {
+        businessRepository.resetAllSystemData()
+        initialized = false
+        _uiState.value = BusinessSettingsUiState()
+        onComplete()
+      } catch (e: Exception) {
+        _uiState.update {
+          it.copy(
+            isResetting = false,
+            statusMessage = e.message ?: "No se pudo restablecer el sistema.",
             isError = true,
           )
         }

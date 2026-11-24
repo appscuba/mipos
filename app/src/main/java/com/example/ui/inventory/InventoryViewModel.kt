@@ -40,6 +40,7 @@ data class InventoryUiState(
   val items: List<ProductWithDetails> = emptyList(),
   val filteredItems: List<ProductWithDetails> = emptyList(),
   val categories: List<CategoryEntity> = emptyList(),
+  val productCountsByCategory: Map<Long, Int> = emptyMap(),
   val gramsPerPound: BigDecimal = UnitConverter.DEFAULT_GRAMS_PER_POUND,
   val primaryCurrency: String = "CUP",
   val totalInventoryValueBase: BigDecimal = MoneyMath.ZERO,
@@ -107,6 +108,11 @@ class InventoryViewModel(
       matchesSearch && matchesCategory && matchesModality && matchesStock
     }
 
+    val countsByCat = overview.items
+      .mapNotNull { it.product.categoryId }
+      .groupingBy { it }
+      .eachCount()
+
     InventoryUiState(
       businessId = bizId,
       isLoading = bizId <= 0L,
@@ -117,6 +123,7 @@ class InventoryViewModel(
       items = overview.items,
       filteredItems = filtered,
       categories = overview.categories,
+      productCountsByCategory = countsByCat,
       gramsPerPound = overview.gramsPerPound,
       primaryCurrency = overview.primaryCurrency,
       totalInventoryValueBase = overview.totalInventoryValueBase,
@@ -164,6 +171,22 @@ class InventoryViewModel(
         feedback.value = "Categoría guardada." to false
       } catch (e: Exception) {
         feedback.value = (e.message ?: "Error al guardar categoría.") to true
+      }
+    }
+  }
+
+  fun deleteCategory(categoryId: Long) {
+    val bizId = businessIdFlow.value
+    if (bizId <= 0L) return
+    viewModelScope.launch {
+      try {
+        inventoryRepository.deleteCategory(bizId, categoryId)
+        if (filters.value.selectedCategoryId == categoryId) {
+          filters.update { it.copy(selectedCategoryId = null) }
+        }
+        feedback.value = "Categoría eliminada." to false
+      } catch (e: Exception) {
+        feedback.value = (e.message ?: "Error al eliminar categoría.") to true
       }
     }
   }

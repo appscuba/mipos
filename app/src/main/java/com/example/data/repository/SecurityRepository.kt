@@ -67,6 +67,7 @@ class SecurityRepository(
     Triple(bizId, prefs.activeUserId, manualLock)
   }.flatMapLatest { (bizId, activeUserId, manualLock) ->
     if (bizId <= 0L) {
+      lockOverride.value = null
       flowOf(ActiveUserSession())
     } else {
       combine(
