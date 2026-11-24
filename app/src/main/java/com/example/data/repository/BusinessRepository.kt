@@ -65,6 +65,7 @@ class BusinessRepository(
   private val catalogDao = db.catalogDao()
   private val inventoryDao = db.inventoryDao()
   private val purchaseDao = db.purchaseDao()
+  private val financeDao = db.financeDao()
 
   @OptIn(ExperimentalCoroutinesApi::class)
   fun observeWorkspaceSnapshot(): Flow<BusinessWorkspaceSnapshot> =
@@ -262,18 +263,36 @@ class BusinessRepository(
         )
       }
 
-      if (catalogDao.countExpenseCategories(businessId) == 0) {
-        catalogDao.insertExpenseCategories(
-          listOf(
-            ExpenseCategoryEntity(businessId = businessId, name = "Transporte", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Electricidad", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Salarios", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Alquiler", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Comunicaciones", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Mantenimiento", isSystemDefault = true),
-            ExpenseCategoryEntity(businessId = businessId, name = "Otros", isSystemDefault = true),
-          ),
-        )
+      // Ensure default expense categories exist even for businesses created by older app versions.
+      // Do not gate this on the total category count: older databases may have only a partial set.
+      val defaultExpenseCategories = listOf(
+        "Transporte",
+        "Combustible",
+        "Entrega y domicilio",
+        "Salarios",
+        "Electricidad",
+        "Agua",
+        "Alquiler",
+        "Internet y teléfono",
+        "Alimentación del personal",
+        "Mantenimiento",
+        "Impuestos y tasas",
+        "Gastos bancarios",
+        "Materiales y suministros",
+        "Otros",
+      )
+      for (categoryName in defaultExpenseCategories) {
+        if (financeDao.getExpenseCategoryByName(businessId, categoryName) == null) {
+          catalogDao.insertExpenseCategories(
+            listOf(
+              ExpenseCategoryEntity(
+                businessId = businessId,
+                name = categoryName,
+                isSystemDefault = true,
+              ),
+            ),
+          )
+        }
       }
 
       securityDao.insertAuditLog(
