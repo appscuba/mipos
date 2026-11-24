@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -113,14 +114,15 @@ fun PosCheckoutDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 12.dp, vertical = 16.dp)
+        .fillMaxHeight(0.92f)
+        .padding(horizontal = 12.dp, vertical = 12.dp)
         .widthIn(max = 720.dp)
         .heightIn(max = 860.dp),
       shape = MaterialTheme.shapes.large,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = 6.dp,
     ) {
-      Column(modifier = Modifier.padding(16.dp)) {
+      Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
@@ -144,7 +146,7 @@ fun PosCheckoutDialog(
           onSelectCustomer = onSelectCustomer,
           onQuickCreateCustomer = onQuickCreateCustomer,
           onConfirmSale = onConfirmSale,
-          modifier = Modifier.weight(1f, fill = false),
+          modifier = Modifier.weight(1f),
         )
       }
     }
@@ -337,7 +339,7 @@ fun PosCartCheckoutContent(
       Column(
         modifier = Modifier
           .fillMaxWidth()
-          .weight(1f, fill = false)
+          .weight(1f)
           .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
