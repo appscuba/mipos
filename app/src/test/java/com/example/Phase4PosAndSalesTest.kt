@@ -72,6 +72,11 @@ class Phase4PosAndSalesTest {
         allowNegativeStock = false,
       ),
     )
+
+    // Every POS test starts with a valid cash session because sales now require
+    // an explicit opening, exactly like the production workflow.
+    com.example.data.repository.FinanceRepository(db)
+      .openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
   }
 
   @After
