@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.example.data.license.LicenseRepository
 import kotlinx.coroutines.launch
@@ -33,14 +36,14 @@ import kotlinx.coroutines.launch
 fun LicenseActivationScreen(
   repository: LicenseRepository,
   deviceId: String,
-  currentPhone: String,
+  currentLicenseKey: String,
   onActivated: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
   val clipboard = LocalClipboardManager.current
   val scope = rememberCoroutineScope()
-  var phone by remember(currentPhone) { mutableStateOf(currentPhone) }
+  var licenseKey by remember(currentLicenseKey) { mutableStateOf(currentLicenseKey) }
   var message by remember { mutableStateOf<String?>(null) }
   var loading by remember { mutableStateOf(false) }
 
@@ -48,8 +51,8 @@ fun LicenseActivationScreen(
     modifier = modifier.padding(16.dp),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
-    Text("Activar licencia / Mejorar plan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text("Tu instalación de Stock+ tiene un identificador único. Envíalo por WhatsApp para asociar tu licencia.")
+    Text("Activar licencia", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text("Tu instalación de Stock+ tiene un identificador único. Envíalo a PedritoTech para recibir tu clave de licencia. Después, introdúcela aquí para activar tu plan.")
     Card(Modifier.fillMaxWidth()) {
       Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("ID DE INSTALACIÓN", style = MaterialTheme.typography.labelMedium)
@@ -58,29 +61,37 @@ fun LicenseActivationScreen(
       }
     }
     OutlinedTextField(
-      value = phone,
-      onValueChange = { phone = it },
+      value = licenseKey,
+      onValueChange = {
+        licenseKey = it.uppercase().filter { ch -> ch.isLetterOrDigit() || ch == '-' }.take(80)
+        message = null
+      },
       modifier = Modifier.fillMaxWidth(),
-      label = { Text("Teléfono registrado") },
+      label = { Text("Clave de licencia") },
+      placeholder = { Text("Introduce la clave recibida") },
       singleLine = true,
+      keyboardOptions = KeyboardOptions(
+        capitalization = KeyboardCapitalization.Characters,
+        keyboardType = KeyboardType.Ascii,
+      ),
     )
     if (message != null) Text(message!!, color = MaterialTheme.colorScheme.error)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       Button(
         onClick = {
-          if (phone.isBlank()) {
-            message = "Escribe el teléfono asociado a tu licencia."
+          if (licenseKey.isBlank()) {
+            message = "Introduce la clave de licencia que te proporcionó PedritoTech."
           } else {
             loading = true
             message = null
             scope.launch {
-              val result = repository.activate(phone.trim())
+              val result = repository.activate(licenseKey.trim())
               loading = false
               when (result.status) {
                 "active" -> { message = "Licencia activada correctamente."; onActivated() }
-                "invalid" -> message = "Ese ID y teléfono no tienen una licencia activa. Escríbenos por WhatsApp."
+                "invalid" -> message = "La clave de licencia no existe o no es válida."
                 "revoked" -> message = "Esta licencia fue revocada. Contacta con soporte."
-                "expired" -> message = "Esta licencia ha vencido. Renueva por WhatsApp."
+                "expired" -> message = "Esta licencia ha vencido. Solicita una renovación."
                 else -> message = result.message ?: "No se pudo validar la licencia. Comprueba tu conexión."
               }
             }
@@ -88,11 +99,11 @@ fun LicenseActivationScreen(
         },
         enabled = !loading,
       ) {
-        if (loading) CircularProgressIndicator() else Text("Activar")
+        if (loading) CircularProgressIndicator() else Text("Activar licencia")
       }
       OutlinedButton(
         onClick = {
-          val text = Uri.encode("Hola, quiero activar Stock+. Mi ID es $deviceId y mi teléfono es $phone")
+          val text = Uri.encode("Hola, quiero solicitar una licencia de Stock+. Mi ID de instalación es $deviceId")
           val uri = Uri.parse("https://wa.me/5353274074?text=$text")
           context.startActivity(Intent(Intent.ACTION_VIEW, uri))
         },
