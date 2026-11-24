@@ -372,4 +372,144 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("security_active_user_name").assertTextEquals("Propietario")
   }
+
+  @Test
+  fun `cliente permite crear deuda agrandarla y quitarla desde su detalle`() {
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("setup_business_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("setup_business_name_input").performScrollTo().performTextInput("Bodega Sol")
+    composeTestRule.onNodeWithTag("setup_submit_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_customers").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_customers").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("customers_add_fab").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("customers_add_fab").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("customer_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("customer_name_input").performTextInput("Mario Díaz")
+    composeTestRule.onNodeWithTag("customer_save_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithText("Mario Díaz").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithText("Mario Díaz").performClick()
+
+    // Crear nueva deuda de 300
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("customer_add_debt_btn").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("customer_add_debt_btn").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("debt_adjust_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("debt_adjust_amount_input").performTextInput("300")
+    composeTestRule.onNodeWithTag("debt_adjust_confirm_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("customer_debt_increase_btn_1").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("customer_detail_balance").assertTextEquals("300.00 CUP")
+
+    // Agrandar la deuda en +200 -> 500.00 CUP
+    composeTestRule.onNodeWithTag("customer_debt_increase_btn_1").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("debt_adjust_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("debt_adjust_amount_input").performTextInput("200")
+    composeTestRule.onNodeWithTag("debt_adjust_confirm_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithText("500.00 CUP").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("customer_detail_balance").assertTextEquals("500.00 CUP")
+
+    // Quitar toda la deuda -> 0.00 CUP
+    composeTestRule.onNodeWithTag("customer_debt_remove_btn_1").performScrollTo().performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("debt_remove_full_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("debt_remove_full_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("customer_debt_remove_btn_1").fetchSemanticsNodes().isEmpty()
+    }
+    composeTestRule.onNodeWithTag("customer_detail_balance").assertTextEquals("0.00 CUP")
+  }
+
+  @Test
+  fun `pos simplificado permite elegir cliente rapido anadir con un toque y vender al fiado`() {
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("setup_business_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("setup_business_name_input").performScrollTo().performTextInput("Tienda Rápida")
+    composeTestRule.onNodeWithTag("setup_submit_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // Crear producto por unidad
+    composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("inventory_add_product_fab").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("inventory_add_product_fab").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("product_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("product_modality_UNIT").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("product_name_input").performTextInput("Refresco")
+    composeTestRule.onNodeWithTag("product_sale_price_input").performScrollTo().performTextInput("150")
+    composeTestRule.onNodeWithTag("product_cost_input").performScrollTo().performTextInput("100")
+    composeTestRule.onNodeWithTag("product_initial_stock_input").performScrollTo().performTextInput("12")
+    composeTestRule.onNodeWithTag("product_save_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithText("1 productos").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // Ir al POS -> crear cliente rápido directo en la barra superior -> añadir con 1 toque -> vender fiado
+    composeTestRule.onNodeWithTag("nav_tab_pos").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_bar_quick_customer_btn").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_bar_quick_customer_btn").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("quick_customer_name_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("quick_customer_name_input").performTextInput("Ana López")
+    composeTestRule.onNodeWithTag("quick_customer_save_button").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_quick_add_1").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_quick_add_1").performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_open_cart_button").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
+    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performScrollTo().performClick()
+
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("receipt_title").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("receipt_title").assertTextEquals("Comprobante V-00001")
+  }
 }

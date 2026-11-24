@@ -271,6 +271,50 @@ class PosViewModel(
     onSuccess()
   }
 
+  fun quickAddDefaultUnit(productWithDetails: ProductWithDetails) {
+    val product = productWithDetails.product
+    val modality = ProductModality.fromCode(product.modality)
+    val state = uiState.value
+    val (unitLabel, qty, factor) = if (modality == ProductModality.WEIGHT) {
+      when (product.defaultSaleUnit) {
+        "KG" -> Triple("kg", BigDecimal.ONE, UnitConverter.GRAMS_PER_KILOGRAM)
+        "GRAM" -> Triple("g", BigDecimal("100"), BigDecimal.ONE)
+        else -> Triple("lb", BigDecimal.ONE, state.gramsPerPound)
+      }
+    } else {
+      Triple("u", BigDecimal.ONE, BigDecimal.ONE)
+    }
+    addItemToCart(
+      productWithDetails = productWithDetails,
+      unitLabel = unitLabel,
+      enteredQuantity = qty,
+      conversionFactorToBase = factor,
+      overrideUnitSalePriceBase = null,
+      onSuccess = {},
+    )
+  }
+
+  fun quickDecrementDefaultUnit(productWithDetails: ProductWithDetails) {
+    val product = productWithDetails.product
+    val modality = ProductModality.fromCode(product.modality)
+    val state = uiState.value
+    val (unitLabel, step) = if (modality == ProductModality.WEIGHT) {
+      when (product.defaultSaleUnit) {
+        "KG" -> "kg" to BigDecimal.ONE
+        "GRAM" -> "g" to BigDecimal("100")
+        else -> "lb" to BigDecimal.ONE
+      }
+    } else {
+      "u" to BigDecimal.ONE
+    }
+    val matchingLine = state.cartItems.lastOrNull {
+      it.productWithDetails.product.id == product.id &&
+        it.unitLabel == unitLabel &&
+        it.overrideUnitSalePriceBase == null
+    } ?: return
+    updateCartItemQuantity(matchingLine.lineId, matchingLine.enteredQuantity.subtract(step))
+  }
+
   fun updateCartItemQuantity(lineId: String, newQty: BigDecimal) {
     if (newQty <= BigDecimal.ZERO) {
       removeCartItem(lineId)

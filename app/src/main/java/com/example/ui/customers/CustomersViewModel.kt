@@ -210,6 +210,104 @@ class CustomersViewModel(
     }
   }
 
+  fun createDebt(
+    customerId: Long,
+    amountOriginal: BigDecimal,
+    currencyCode: String,
+    exchangeRateToBase: BigDecimal,
+    note: String,
+    onSuccess: () -> Unit,
+  ) {
+    val bizId = uiState.value.businessId
+    if (bizId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        financeRepository.createCustomerDebt(
+          businessId = bizId,
+          customerId = customerId,
+          amountOriginal = amountOriginal,
+          currencyCode = currencyCode,
+          exchangeRateToBase = exchangeRateToBase,
+          note = note,
+          userId = currentUserIdProvider(),
+        )
+        feedbackMessage.value = "Deuda agregada correctamente"
+        onSuccess()
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo crear la deuda."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
+  fun increaseDebt(
+    debtId: Long,
+    addedAmountOriginal: BigDecimal,
+    currencyCode: String,
+    exchangeRateToBase: BigDecimal,
+    note: String,
+    onSuccess: () -> Unit,
+  ) {
+    val bizId = uiState.value.businessId
+    if (bizId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        financeRepository.increaseCustomerDebt(
+          businessId = bizId,
+          debtId = debtId,
+          addedAmountOriginal = addedAmountOriginal,
+          currencyCode = currencyCode,
+          exchangeRateToBase = exchangeRateToBase,
+          note = note,
+          userId = currentUserIdProvider(),
+        )
+        feedbackMessage.value = "Deuda ampliada correctamente"
+        onSuccess()
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo ampliar la deuda."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
+  fun reduceOrRemoveDebt(
+    debtId: Long,
+    reduceAmountOriginal: BigDecimal? = null,
+    currencyCode: String = "CUP",
+    exchangeRateToBase: BigDecimal = BigDecimal.ONE,
+    removeCompletely: Boolean = false,
+    reason: String = "",
+    onSuccess: () -> Unit,
+  ) {
+    val bizId = uiState.value.businessId
+    if (bizId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        financeRepository.reduceOrRemoveCustomerDebt(
+          businessId = bizId,
+          debtId = debtId,
+          reduceAmountOriginal = reduceAmountOriginal,
+          currencyCode = currencyCode,
+          exchangeRateToBase = exchangeRateToBase,
+          removeCompletely = removeCompletely,
+          reason = reason,
+          userId = currentUserIdProvider(),
+        )
+        feedbackMessage.value = if (removeCompletely) "Deuda quitada correctamente" else "Deuda reducida correctamente"
+        onSuccess()
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo ajustar la deuda."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
   private data class CustomersDomainBundle(
     val businessId: Long,
     val customers: List<CustomerEntity>,

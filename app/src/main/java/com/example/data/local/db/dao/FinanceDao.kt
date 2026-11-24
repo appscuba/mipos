@@ -100,8 +100,14 @@ interface FinanceDao {
   @Query("SELECT * FROM debts WHERE businessId = :businessId AND partyType = 'CUSTOMER_RECEIVABLE' AND partyId = :customerId ORDER BY createdAt DESC")
   fun observeDebtsForCustomer(businessId: Long, customerId: Long): Flow<List<DebtEntity>>
 
+  @Query("SELECT * FROM debts WHERE businessId = :businessId AND partyType = 'CUSTOMER_RECEIVABLE' AND partyId = :customerId")
+  suspend fun getDebtsForCustomerSync(businessId: Long, customerId: Long): List<DebtEntity>
+
   @Query("SELECT * FROM debts WHERE id = :debtId LIMIT 1")
   suspend fun getDebtById(debtId: Long): DebtEntity?
+
+  @Insert(onConflict = OnConflictStrategy.ABORT)
+  suspend fun insertDebt(debt: DebtEntity): Long
 
   @Update
   suspend fun updateDebt(debt: DebtEntity)

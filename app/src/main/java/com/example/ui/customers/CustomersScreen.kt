@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Payments
@@ -32,12 +35,14 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +65,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.money.MoneyMath
 import com.example.data.local.db.entity.CustomerEntity
@@ -80,6 +87,12 @@ private val COLLECTION_METHODS = listOf(
   "OTHER" to "Otro",
 )
 
+private sealed interface CustomerDebtAdjustAction {
+  data class CreateManual(val customer: CustomerEntity) : CustomerDebtAdjustAction
+  data class IncreaseExisting(val debt: DebtEntity) : CustomerDebtAdjustAction
+  data class ReduceOrRemove(val debt: DebtEntity) : CustomerDebtAdjustAction
+}
+
 @Composable
 fun CustomersScreen(
   viewModel: CustomersViewModel,
@@ -91,6 +104,7 @@ fun CustomersScreen(
   var editingCustomer by remember { mutableStateOf<CustomerEntity?>(null) }
   var showCreateForm by remember { mutableStateOf(false) }
   var collectingDebt by remember { mutableStateOf<DebtEntity?>(null) }
+  var adjustingDebtAction by remember { mutableStateOf<CustomerDebtAdjustAction?>(null) }
 
   LaunchedEffect(state.feedbackMessage) {
     val msg = state.feedbackMessage
@@ -261,7 +275,12 @@ fun CustomersScreen(
       onArchive = {
         viewModel.archiveCustomer(currentCustomer.id) {}
       },
+      onCreateDebt = {
+        adjustingDebtAction = CustomerDebtAdjustAction.CreateManual(currentCustomer)
+      },
       onCollectDebt = { debt -> collectingDebt = debt },
+      onIncreaseDebt = { debt -> adjustingDebtAction = CustomerDebtAdjustAction.IncreaseExisting(debt) },
+      onReduceOrRemoveDebt = { debt -> adjustingDebtAction = CustomerDebtAdjustAction.ReduceOrRemove(debt) },
       onDismiss = { viewModel.selectCustomer(null) },
     )
   }
@@ -285,6 +304,50 @@ fun CustomersScreen(
         }
       },
       onDismiss = { collectingDebt = null },
+    )
+  }
+
+  adjustingDebtAction?.let { action ->
+    CustomerDebtAdjustDialog(
+      action = action,
+      exchangeRates = state.exchangeRates,
+      primaryCurrency = state.primaryCurrency,
+      isSaving = state.isSaving,
+      onCreateDebt = { customerId, amount, currency, rate, note ->
+        viewModel.createDebt(
+          customerId = customerId,
+          amountOriginal = amount,
+          currencyCode = currency,
+          exchangeRateToBase = rate,
+          note = note,
+        ) {
+          adjustingDebtAction = null
+        }
+      },
+      onIncreaseDebt = { debtId, amount, currency, rate, note ->
+        viewModel.increaseDebt(
+          debtId = debtId,
+          addedAmountOriginal = amount,
+          currencyCode = currency,
+          exchangeRateToBase = rate,
+          note = note,
+        ) {
+          adjustingDebtAction = null
+        }
+      },
+      onReduceOrRemoveDebt = { debtId, amount, currency, rate, removeAll, reason ->
+        viewModel.reduceOrRemoveDebt(
+          debtId = debtId,
+          reduceAmountOriginal = amount,
+          currencyCode = currency,
+          exchangeRateToBase = rate,
+          removeCompletely = removeAll,
+          reason = reason,
+        ) {
+          adjustingDebtAction = null
+        }
+      },
+      onDismiss = { adjustingDebtAction = null },
     )
   }
 }
@@ -418,117 +481,444 @@ private fun CustomerFormDialog(
   )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CustomerDetailDialog(
   detail: CustomerDetailSnapshot,
   primaryCurrency: String,
   onEdit: () -> Unit,
   onArchive: () -> Unit,
+  onCreateDebt: () -> Unit,
   onCollectDebt: (DebtEntity) -> Unit,
+  onIncreaseDebt: (DebtEntity) -> Unit,
+  onReduceOrRemoveDebt: (DebtEntity) -> Unit,
   onDismiss: () -> Unit,
 ) {
   val customer = detail.customer ?: return
   val dateFmt = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
-  AlertDialog(
+  Dialog(
     onDismissRequest = onDismiss,
-    title = { Text(customer.name) },
-    text = {
-      Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-      ) {
-        if (customer.phone.isNotBlank()) {
-          Text("Teléfono: ${customer.phone}", style = MaterialTheme.typography.bodySmall)
-        }
-        if (customer.address.isNotBlank()) {
-          Text("Dirección: ${customer.address}", style = MaterialTheme.typography.bodySmall)
-        }
-        Text(
-          text = "Saldo por cobrar: ${MoneyMath.format(customer.debtBalanceBase, primaryCurrency)}",
-          style = MonoMetricMedium,
-          fontWeight = FontWeight.Bold,
-          color = if (customer.debtBalanceBase > BigDecimal.ZERO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          OutlinedButton(
-            onClick = onEdit,
-            modifier = Modifier.weight(1f).height(48.dp),
-          ) {
-            Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Editar")
+    properties = DialogProperties(usePlatformDefaultWidth = false),
+  ) {
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(14.dp)
+        .widthIn(max = 680.dp)
+        .heightIn(max = 860.dp),
+      shape = MaterialTheme.shapes.large,
+      color = MaterialTheme.colorScheme.surface,
+      tonalElevation = 6.dp,
+    ) {
+      Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(customer.name, style = MaterialTheme.typography.titleLarge)
+            if (customer.phone.isNotBlank()) {
+              Text("Tel: ${customer.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
           }
-          OutlinedButton(
-            onClick = onArchive,
-            enabled = customer.debtBalanceBase <= BigDecimal.ZERO,
-            modifier = Modifier.weight(1f).height(48.dp).testTag("customer_archive_button"),
+          IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.minimumInteractiveComponentSize(),
           ) {
-            Icon(Icons.Filled.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Archivar")
+            Icon(Icons.Filled.Close, contentDescription = "Cerrar detalle")
           }
         }
 
-        HorizontalDivider()
-        Text("Cuentas por Cobrar (${detail.debts.size})", style = MaterialTheme.typography.titleSmall)
-        if (detail.debts.isEmpty()) {
-          Text("Sin créditos pendientes.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-          detail.debts.forEach { debt ->
-            val canCollect = debt.status == "OPEN" || debt.status == "PARTIAL"
-            Card(
-              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-              shape = MaterialTheme.shapes.small,
+        Column(
+          modifier = Modifier
+            .weight(1f, fill = false)
+            .verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+          if (customer.address.isNotBlank()) {
+            Text("Dirección: ${customer.address}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          }
+
+          Card(
+            colors = CardDefaults.cardColors(
+              containerColor = if (customer.debtBalanceBase > BigDecimal.ZERO) {
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+              } else {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+              },
+            ),
+            shape = MaterialTheme.shapes.medium,
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(12.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
             ) {
-              Column(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                  Text("Venta #${debt.referenceId} • ${debt.status}", style = MaterialTheme.typography.labelLarge)
-                  Text(dateFmt.format(Date(debt.createdAt)), style = MaterialTheme.typography.labelSmall)
-                }
+              Column {
+                Text("Saldo por cobrar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                  text = "Total: ${MoneyMath.format(debt.totalBase, primaryCurrency)} • Abonado: ${MoneyMath.format(debt.paidBase, primaryCurrency)}",
-                  style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                  text = "Restante: ${MoneyMath.format(debt.remainingBase, primaryCurrency)}",
+                  text = MoneyMath.format(customer.debtBalanceBase, primaryCurrency),
                   style = MonoMetricMedium,
-                  color = if (canCollect) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                  fontWeight = FontWeight.Bold,
+                  color = if (customer.debtBalanceBase > BigDecimal.ZERO) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                  modifier = Modifier.testTag("customer_detail_balance"),
                 )
-                if (canCollect) {
-                  Button(
-                    onClick = { onCollectDebt(debt) },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth().height(48.dp).testTag("customer_debt_collect_btn_${debt.id}"),
-                  ) {
-                    Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Registrar Abono")
+              }
+              Button(
+                onClick = onCreateDebt,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.height(48.dp).testTag("customer_add_debt_btn"),
+              ) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Nueva Deuda", maxLines = 1, softWrap = false)
+              }
+            }
+          }
+
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+              onClick = onEdit,
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.weight(1f).height(48.dp),
+            ) {
+              Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(Modifier.width(4.dp))
+              Text("Editar")
+            }
+            OutlinedButton(
+              onClick = onArchive,
+              enabled = customer.debtBalanceBase <= BigDecimal.ZERO,
+              shape = RoundedCornerShape(10.dp),
+              modifier = Modifier.weight(1f).height(48.dp).testTag("customer_archive_button"),
+            ) {
+              Icon(Icons.Filled.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(Modifier.width(4.dp))
+              Text("Archivar")
+            }
+          }
+
+          HorizontalDivider()
+          Text("Cuentas por Cobrar (${detail.debts.size})", style = MaterialTheme.typography.titleSmall)
+          if (detail.debts.isEmpty()) {
+            Text(
+              "Sin deudas registradas. Usa \"Nueva Deuda\" para asignar un fiado manual o vende a crédito en Tienda.",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          } else {
+            detail.debts.forEach { debt ->
+              val isOpen = debt.status == "OPEN" || debt.status == "PARTIAL"
+              val isAnnulled = debt.status == "ANNULLED"
+              val statusLabel = when (debt.status) {
+                "OPEN" -> "Pendiente"
+                "PARTIAL" -> "Parcial"
+                "PAID" -> "Pagada"
+                "ANNULLED" -> "Quitada"
+                else -> debt.status
+              }
+              val titleLabel = if (debt.referenceType == "MANUAL") {
+                "Deuda manual #${debt.id}"
+              } else {
+                "Venta #${debt.referenceId}"
+              }
+
+              Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)),
+                shape = MaterialTheme.shapes.small,
+              ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("$titleLabel • $statusLabel", style = MaterialTheme.typography.labelLarge)
+                    Text(dateFmt.format(Date(debt.createdAt)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  }
+                  Text(
+                    text = "Total: ${MoneyMath.format(debt.totalBase, primaryCurrency)} • Abonado: ${MoneyMath.format(debt.paidBase, primaryCurrency)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  Text(
+                    text = "Restante: ${MoneyMath.format(debt.remainingBase, primaryCurrency)}",
+                    style = MonoMetricMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = when {
+                      isAnnulled -> MaterialTheme.colorScheme.onSurfaceVariant
+                      isOpen -> MaterialTheme.colorScheme.error
+                      else -> MaterialTheme.colorScheme.tertiary
+                    },
+                  )
+                  if (!isAnnulled) {
+                    FlowRow(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.spacedBy(6.dp),
+                      verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                      if (isOpen) {
+                        Button(
+                          onClick = { onCollectDebt(debt) },
+                          shape = RoundedCornerShape(8.dp),
+                          modifier = Modifier.height(44.dp).testTag("customer_debt_collect_btn_${debt.id}"),
+                        ) {
+                          Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
+                          Spacer(Modifier.width(4.dp))
+                          Text("Abonar", maxLines = 1, softWrap = false)
+                        }
+                      }
+                      OutlinedButton(
+                        onClick = { onIncreaseDebt(debt) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(44.dp).testTag("customer_debt_increase_btn_${debt.id}"),
+                      ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Agrandar", maxLines = 1, softWrap = false)
+                      }
+                      if (isOpen) {
+                        OutlinedButton(
+                          onClick = { onReduceOrRemoveDebt(debt) },
+                          shape = RoundedCornerShape(8.dp),
+                          colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                          modifier = Modifier.height(44.dp).testTag("customer_debt_remove_btn_${debt.id}"),
+                        ) {
+                          Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                          Spacer(Modifier.width(4.dp))
+                          Text("Quitar", maxLines = 1, softWrap = false)
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
           }
+
+          HorizontalDivider()
+          Text("Historial de Compras (${detail.sales.size})", style = MaterialTheme.typography.titleSmall)
+          if (detail.sales.isEmpty()) {
+            Text("Sin ventas asociadas.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          } else {
+            detail.sales.take(10).forEach { sale ->
+              Text(
+                text = "${sale.receiptNumber} (${sale.status}) • ${dateFmt.format(Date(sale.saleDate))} • ${MoneyMath.format(sale.totalBase, primaryCurrency)}",
+                style = MaterialTheme.typography.bodySmall,
+              )
+            }
+          }
         }
 
-        HorizontalDivider()
-        Text("Historial de Compras (${detail.sales.size})", style = MaterialTheme.typography.titleSmall)
-        if (detail.sales.isEmpty()) {
-          Text("Sin ventas asociadas.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-          detail.sales.take(10).forEach { sale ->
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+          TextButton(onClick = onDismiss) { Text("Cerrar") }
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CustomerDebtAdjustDialog(
+  action: CustomerDebtAdjustAction,
+  exchangeRates: List<ExchangeRateEntity>,
+  primaryCurrency: String,
+  isSaving: Boolean,
+  onCreateDebt: (customerId: Long, amount: BigDecimal, currency: String, rate: BigDecimal, note: String) -> Unit,
+  onIncreaseDebt: (debtId: Long, amount: BigDecimal, currency: String, rate: BigDecimal, note: String) -> Unit,
+  onReduceOrRemoveDebt: (debtId: Long, amount: BigDecimal?, currency: String, rate: BigDecimal, removeCompletely: Boolean, reason: String) -> Unit,
+  onDismiss: () -> Unit,
+) {
+  val businessId = when (action) {
+    is CustomerDebtAdjustAction.CreateManual -> action.customer.businessId
+    is CustomerDebtAdjustAction.IncreaseExisting -> action.debt.businessId
+    is CustomerDebtAdjustAction.ReduceOrRemove -> action.debt.businessId
+  }
+  val activeRates = remember(exchangeRates, primaryCurrency) {
+    exchangeRates.ifEmpty {
+      listOf(
+        ExchangeRateEntity(
+          businessId = businessId,
+          currencyCode = primaryCurrency,
+          currencyName = primaryCurrency,
+          symbol = "$",
+          rateToBase = BigDecimal("1.0000"),
+          isBaseCurrency = true,
+        ),
+      )
+    }
+  }
+
+  var selectedCurrency by remember { mutableStateOf(primaryCurrency) }
+  var rateText by remember { mutableStateOf("1.0000") }
+  var amountText by remember(action) {
+    mutableStateOf(
+      if (action is CustomerDebtAdjustAction.ReduceOrRemove) {
+        MoneyMath.formatQuantity(action.debt.remainingBase)
+      } else {
+        ""
+      },
+    )
+  }
+  var note by remember { mutableStateOf("") }
+  var error by remember { mutableStateOf<String?>(null) }
+
+  val parsedRate = MoneyMath.parseDecimalOrNull(rateText)?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ONE
+  val parsedAmount = MoneyMath.parseMoneyOrNull(amountText) ?: MoneyMath.ZERO
+  val convertedBase = MoneyMath.convertToBase(parsedAmount.max(BigDecimal.ZERO), parsedRate)
+
+  val titleText = when (action) {
+    is CustomerDebtAdjustAction.CreateManual -> "Nueva Deuda — ${action.customer.name}"
+    is CustomerDebtAdjustAction.IncreaseExisting -> "Agrandar Deuda #${action.debt.id}"
+    is CustomerDebtAdjustAction.ReduceOrRemove -> "Quitar o Reducir Deuda #${action.debt.id}"
+  }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(titleText) },
+    text = {
+      Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+      ) {
+        when (action) {
+          is CustomerDebtAdjustAction.IncreaseExisting -> {
             Text(
-              text = "${sale.receiptNumber} (${sale.status}) • ${dateFmt.format(Date(sale.saleDate))} • ${MoneyMath.format(sale.totalBase, primaryCurrency)}",
+              text = "Saldo actual: ${MoneyMath.format(action.debt.remainingBase, primaryCurrency)}",
+              style = MonoMetricMedium,
+              color = MaterialTheme.colorScheme.error,
+            )
+          }
+          is CustomerDebtAdjustAction.ReduceOrRemove -> {
+            Text(
+              text = "Saldo pendiente actual: ${MoneyMath.format(action.debt.remainingBase, primaryCurrency)}",
+              style = MonoMetricMedium,
+              color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+              text = "Usa \"Reducir monto\" para descontar una parte o \"Quitar toda la deuda\" para eliminar este saldo sin registrar entrada de efectivo.",
               style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          is CustomerDebtAdjustAction.CreateManual -> {
+            Text(
+              text = "Asigna una deuda directa al cliente sin necesidad de crear una venta.",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
         }
+
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          activeRates.forEach { rate ->
+            FilterChip(
+              selected = selectedCurrency == rate.currencyCode,
+              onClick = {
+                selectedCurrency = rate.currencyCode
+                val newRate = if (rate.isBaseCurrency) BigDecimal.ONE else rate.rateToBase
+                rateText = MoneyMath.formatQuantity(newRate)
+              },
+              label = { Text(rate.currencyCode) },
+            )
+          }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = {
+              Text(
+                when (action) {
+                  is CustomerDebtAdjustAction.CreateManual -> "Monto ($selectedCurrency)"
+                  is CustomerDebtAdjustAction.IncreaseExisting -> "Sumar ($selectedCurrency)"
+                  is CustomerDebtAdjustAction.ReduceOrRemove -> "Quitar ($selectedCurrency)"
+                },
+              )
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(1f).testTag("debt_adjust_amount_input"),
+          )
+          OutlinedTextField(
+            value = rateText,
+            onValueChange = { rateText = it },
+            label = { Text("Tasa") },
+            singleLine = true,
+            enabled = selectedCurrency != primaryCurrency,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(0.65f),
+          )
+        }
+
+        if (parsedAmount > BigDecimal.ZERO) {
+          Text(
+            text = "Equivalente en $primaryCurrency: ${MoneyMath.format(convertedBase, primaryCurrency)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+          )
+        }
+
+        OutlinedTextField(
+          value = note,
+          onValueChange = { note = it },
+          label = { Text("Motivo o nota (opcional)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("debt_adjust_note_input"),
+        )
+
+        if (action is CustomerDebtAdjustAction.ReduceOrRemove) {
+          OutlinedButton(
+            onClick = {
+              onReduceOrRemoveDebt(action.debt.id, null, selectedCurrency, parsedRate, true, note)
+            },
+            enabled = !isSaving,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("debt_remove_full_button"),
+          ) {
+            Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Quitar toda la deuda (${MoneyMath.format(action.debt.remainingBase, primaryCurrency)})")
+          }
+        }
+
+        if (error != null) {
+          Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
       }
     },
-    confirmButton = {},
+    confirmButton = {
+      Button(
+        onClick = {
+          when {
+            parsedAmount <= BigDecimal.ZERO -> error = "El monto debe ser mayor que cero."
+            parsedRate <= BigDecimal.ZERO -> error = "La tasa debe ser positiva."
+            action is CustomerDebtAdjustAction.ReduceOrRemove && convertedBase > action.debt.remainingBase ->
+              error = "El monto supera el saldo pendiente (${action.debt.remainingBase})."
+            action is CustomerDebtAdjustAction.CreateManual ->
+              onCreateDebt(action.customer.id, parsedAmount, selectedCurrency, parsedRate, note)
+            action is CustomerDebtAdjustAction.IncreaseExisting ->
+              onIncreaseDebt(action.debt.id, parsedAmount, selectedCurrency, parsedRate, note)
+            action is CustomerDebtAdjustAction.ReduceOrRemove ->
+              onReduceOrRemoveDebt(action.debt.id, parsedAmount, selectedCurrency, parsedRate, false, note)
+          }
+        },
+        enabled = !isSaving,
+        modifier = Modifier.minimumInteractiveComponentSize().testTag("debt_adjust_confirm_button"),
+      ) {
+        Text(
+          when (action) {
+            is CustomerDebtAdjustAction.CreateManual -> "Crear Deuda"
+            is CustomerDebtAdjustAction.IncreaseExisting -> "Sumar a Deuda"
+            is CustomerDebtAdjustAction.ReduceOrRemove -> "Reducir Monto"
+          },
+        )
+      }
+    },
     dismissButton = {
-      TextButton(onClick = onDismiss) { Text("Cerrar") }
+      TextButton(onClick = onDismiss) { Text("Cancelar") }
     },
   )
 }

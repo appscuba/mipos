@@ -696,6 +696,198 @@ class FinanceRepository(private val db: AppDatabase) {
     }
   }
 
+  suspend fun createCustomerDebt(
+    businessId: Long,
+    customerId: Long,
+    amountOriginal: BigDecimal,
+    currencyCode: String,
+    exchangeRateToBase: BigDecimal,
+    note: String = "",
+    userId: Long? = null,
+  ): Long {
+    require(amountOriginal > BigDecimal.ZERO) { "El monto de la deuda debe ser mayor que cero." }
+    require(exchangeRateToBase > BigDecimal.ZERO) { "La tasa de cambio debe ser positiva." }
+
+    val amountBase = MoneyMath.convertToBase(amountOriginal, exchangeRateToBase)
+    val normCurrency = currencyCode.trim().uppercase()
+    val now = System.currentTimeMillis()
+
+    return db.withTransaction {
+      val customer = financeDao.getCustomerById(customerId) ?: error("Cliente no encontrado.")
+      val debtId = financeDao.insertDebt(
+        DebtEntity(
+          businessId = businessId,
+          partyType = "CUSTOMER_RECEIVABLE",
+          partyId = customer.id,
+          referenceType = "MANUAL",
+          referenceId = 0L,
+          currencyCode = normCurrency,
+          originalAmount = amountOriginal.setScale(MoneyMath.MONEY_SCALE, RoundingMode.HALF_UP),
+          exchangeRateToBase = exchangeRateToBase.setScale(MoneyMath.RATE_SCALE, RoundingMode.HALF_UP),
+          totalBase = amountBase,
+          paidBase = MoneyMath.ZERO,
+          remainingBase = amountBase,
+          status = "OPEN",
+          createdAt = now,
+        ),
+      )
+      recalculateCustomerDebtBalance(businessId, customer.id)
+
+      val cleanNote = note.trim().ifBlank { "Deuda manual registrada" }
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          userId = userId,
+          action = "CUSTOMER_DEBT_CREATED",
+          entityType = "DEBT",
+          entityId = debtId,
+          details = "Deuda creada para ${customer.name}: $amountBase ($cleanNote)",
+          timestamp = now,
+        ),
+      )
+      debtId
+    }
+  }
+
+  suspend fun increaseCustomerDebt(
+    businessId: Long,
+    debtId: Long,
+    addedAmountOriginal: BigDecimal,
+    currencyCode: String,
+    exchangeRateToBase: BigDecimal,
+    note: String = "",
+    userId: Long? = null,
+  ) {
+    require(addedAmountOriginal > BigDecimal.ZERO) { "El monto a agregar debe ser mayor que cero." }
+    require(exchangeRateToBase > BigDecimal.ZERO) { "La tasa de cambio debe ser positiva." }
+
+    val addedBase = MoneyMath.convertToBase(addedAmountOriginal, exchangeRateToBase)
+    val now = System.currentTimeMillis()
+
+    db.withTransaction {
+      val debt = financeDao.getDebtById(debtId) ?: error("Deuda no encontrada.")
+      require(debt.partyType == "CUSTOMER_RECEIVABLE") { "La deuda no pertenece a un cliente." }
+      require(debt.status != "ANNULLED") { "No se puede agrandar una deuda anulada." }
+
+      val newTotal = MoneyMath.add(debt.totalBase, addedBase)
+      val newRemaining = MoneyMath.add(debt.remainingBase, addedBase)
+      val newStatus = if (debt.paidBase > BigDecimal.ZERO) "PARTIAL" else "OPEN"
+
+      financeDao.updateDebt(
+        debt.copy(
+          totalBase = newTotal,
+          remainingBase = newRemaining,
+          status = newStatus,
+        ),
+      )
+      recalculateCustomerDebtBalance(businessId, debt.partyId)
+
+      val cleanNote = note.trim().ifBlank { "Ampliación de deuda" }
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          userId = userId,
+          action = "CUSTOMER_DEBT_INCREASED",
+          entityType = "DEBT",
+          entityId = debt.id,
+          details = "Deuda #${debt.id} aumentada en $addedBase (${currencyCode.trim().uppercase()}) | Nuevo saldo: $newRemaining ($cleanNote)",
+          timestamp = now,
+        ),
+      )
+    }
+  }
+
+  suspend fun reduceOrRemoveCustomerDebt(
+    businessId: Long,
+    debtId: Long,
+    reduceAmountOriginal: BigDecimal? = null,
+    currencyCode: String = "CUP",
+    exchangeRateToBase: BigDecimal = BigDecimal.ONE,
+    removeCompletely: Boolean = false,
+    reason: String = "",
+    userId: Long? = null,
+  ) {
+    val now = System.currentTimeMillis()
+
+    db.withTransaction {
+      val debt = financeDao.getDebtById(debtId) ?: error("Deuda no encontrada.")
+      require(debt.partyType == "CUSTOMER_RECEIVABLE") { "La deuda no pertenece a un cliente." }
+      require(debt.status != "ANNULLED") { "Esta deuda ya fue quitada o anulada." }
+      require(debt.remainingBase > BigDecimal.ZERO) { "Esta deuda no tiene saldo pendiente." }
+
+      if (removeCompletely) {
+        val removedBase = debt.remainingBase
+        financeDao.updateDebt(
+          debt.copy(
+            remainingBase = MoneyMath.ZERO,
+            status = "ANNULLED",
+          ),
+        )
+        recalculateCustomerDebtBalance(businessId, debt.partyId)
+
+        val cleanReason = reason.trim().ifBlank { "Deuda quitada manualmente" }
+        securityDao.insertAuditLog(
+          AuditLogEntity(
+            businessId = businessId,
+            userId = userId,
+            action = "CUSTOMER_DEBT_REMOVED",
+            entityType = "DEBT",
+            entityId = debt.id,
+            details = "Deuda #${debt.id} quitada ($removedBase condonados/anulados): $cleanReason",
+            timestamp = now,
+          ),
+        )
+      } else {
+        require(reduceAmountOriginal != null && reduceAmountOriginal > BigDecimal.ZERO) {
+          "El monto a reducir debe ser mayor que cero."
+        }
+        require(exchangeRateToBase > BigDecimal.ZERO) { "La tasa de cambio debe ser positiva." }
+        val reduceBase = MoneyMath.convertToBase(reduceAmountOriginal, exchangeRateToBase)
+        require(reduceBase <= debt.remainingBase) {
+          "El monto a quitar ($reduceBase) supera el saldo pendiente (${debt.remainingBase})."
+        }
+
+        val newRemaining = MoneyMath.subtract(debt.remainingBase, reduceBase).max(MoneyMath.ZERO)
+        val newTotal = MoneyMath.subtract(debt.totalBase, reduceBase).max(debt.paidBase)
+        val newStatus = when {
+          newRemaining.compareTo(BigDecimal.ZERO) == 0 && debt.paidBase > BigDecimal.ZERO -> "PAID"
+          newRemaining.compareTo(BigDecimal.ZERO) == 0 -> "ANNULLED"
+          debt.paidBase > BigDecimal.ZERO -> "PARTIAL"
+          else -> "OPEN"
+        }
+
+        financeDao.updateDebt(
+          debt.copy(
+            totalBase = newTotal,
+            remainingBase = newRemaining,
+            status = newStatus,
+          ),
+        )
+        recalculateCustomerDebtBalance(businessId, debt.partyId)
+
+        val cleanReason = reason.trim().ifBlank { "Ajuste / reducción de deuda" }
+        securityDao.insertAuditLog(
+          AuditLogEntity(
+            businessId = businessId,
+            userId = userId,
+            action = "CUSTOMER_DEBT_REDUCED",
+            entityType = "DEBT",
+            entityId = debt.id,
+            details = "Deuda #${debt.id} reducida en $reduceBase | Nuevo saldo: $newRemaining ($cleanReason)",
+            timestamp = now,
+          ),
+        )
+      }
+    }
+  }
+
+  private suspend fun recalculateCustomerDebtBalance(businessId: Long, customerId: Long) {
+    val activeRemaining = financeDao.getDebtsForCustomerSync(businessId, customerId)
+      .filter { it.status == "OPEN" || it.status == "PARTIAL" }
+      .fold(MoneyMath.ZERO) { acc, d -> MoneyMath.add(acc, d.remainingBase) }
+    financeDao.updateCustomerDebtBalance(customerId, activeRemaining)
+  }
+
   companion object {
     /**
      * Exact formula: expectedCash = initial + cashSales + cashInflows - cashExpenses - ownerWithdrawals

@@ -272,4 +272,74 @@ class Phase5FinanceAndCashTest {
     financeRepo.archiveCustomer(businessId, customerId)
     assertTrue(!db.financeDao().getCustomerById(customerId)!!.isActive)
   }
+
+  @Test
+  fun `crear deuda manual agrandar deuda y reducir o quitar deuda actualizan saldo del cliente y auditoria sin afectar caja`() = runBlocking {
+    financeRepo.openCashSession(businessId, BigDecimal("1000.00"))
+    val customerId = financeRepo.saveCustomer(businessId = businessId, name = "Carlos Méndez", phone = "555-9999")
+
+    // 1. Crear deuda manual de 300.00 CUP
+    val debtId = financeRepo.createCustomerDebt(
+      businessId = businessId,
+      customerId = customerId,
+      amountOriginal = BigDecimal("300.00"),
+      currencyCode = "CUP",
+      exchangeRateToBase = BigDecimal.ONE,
+      note = "Saldo anterior",
+    )
+    var debt = db.financeDao().getDebtById(debtId)!!
+    assertEquals("MANUAL", debt.referenceType)
+    assertEquals("OPEN", debt.status)
+    assertEquals(0, BigDecimal("300.00").compareTo(debt.remainingBase))
+    assertEquals(0, BigDecimal("300.00").compareTo(db.financeDao().getCustomerById(customerId)!!.debtBalanceBase))
+
+    // 2. Agrandar deuda en +150.00 CUP -> 450.00 CUP
+    financeRepo.increaseCustomerDebt(
+      businessId = businessId,
+      debtId = debtId,
+      addedAmountOriginal = BigDecimal("150.00"),
+      currencyCode = "CUP",
+      exchangeRateToBase = BigDecimal.ONE,
+      note = "Fiado adicional",
+    )
+    debt = db.financeDao().getDebtById(debtId)!!
+    assertEquals(0, BigDecimal("450.00").compareTo(debt.totalBase))
+    assertEquals(0, BigDecimal("450.00").compareTo(debt.remainingBase))
+    assertEquals(0, BigDecimal("450.00").compareTo(db.financeDao().getCustomerById(customerId)!!.debtBalanceBase))
+
+    // 3. Reducir deuda parcialmente en 100.00 CUP -> 350.00 CUP (sin afectar efectivo en caja)
+    financeRepo.reduceOrRemoveCustomerDebt(
+      businessId = businessId,
+      debtId = debtId,
+      reduceAmountOriginal = BigDecimal("100.00"),
+      currencyCode = "CUP",
+      exchangeRateToBase = BigDecimal.ONE,
+      removeCompletely = false,
+      reason = "Ajuste por descuento",
+    )
+    debt = db.financeDao().getDebtById(debtId)!!
+    assertEquals("OPEN", debt.status)
+    assertEquals(0, BigDecimal("350.00").compareTo(debt.remainingBase))
+    assertEquals(0, BigDecimal("350.00").compareTo(db.financeDao().getCustomerById(customerId)!!.debtBalanceBase))
+    assertEquals(0, BigDecimal("1000.00").compareTo(financeRepo.observeOpenCashSession(businessId).first()!!.expectedCashBase))
+
+    // 4. Quitar toda la deuda restante -> ANNULLED y saldo 0.00
+    financeRepo.reduceOrRemoveCustomerDebt(
+      businessId = businessId,
+      debtId = debtId,
+      removeCompletely = true,
+      reason = "Condonación total",
+    )
+    debt = db.financeDao().getDebtById(debtId)!!
+    assertEquals("ANNULLED", debt.status)
+    assertEquals(0, BigDecimal.ZERO.compareTo(debt.remainingBase))
+    assertEquals(0, BigDecimal.ZERO.compareTo(db.financeDao().getCustomerById(customerId)!!.debtBalanceBase))
+    assertEquals(0, BigDecimal("1000.00").compareTo(financeRepo.observeOpenCashSession(businessId).first()!!.expectedCashBase))
+
+    val logs = db.securityDao().observeRecentAuditLogs(businessId).first().map { it.action }
+    assertTrue(logs.contains("CUSTOMER_DEBT_CREATED"))
+    assertTrue(logs.contains("CUSTOMER_DEBT_INCREASED"))
+    assertTrue(logs.contains("CUSTOMER_DEBT_REDUCED"))
+    assertTrue(logs.contains("CUSTOMER_DEBT_REMOVED"))
+  }
 }

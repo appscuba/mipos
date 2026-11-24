@@ -12,31 +12,45 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PointOfSale
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,10 +61,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.money.MoneyMath
 import com.example.core.units.UnitConverter
+import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.repository.ProductModality
 import com.example.data.repository.ProductWithDetails
 import com.example.ui.history.SaleReceiptDialog
@@ -67,6 +85,8 @@ fun PosScreen(
 
   var selectingProduct by remember { mutableStateOf<ProductWithDetails?>(null) }
   var showCheckoutDialog by remember { mutableStateOf(false) }
+  var showCustomerPicker by remember { mutableStateOf(false) }
+  var showQuickCustomerDialog by remember { mutableStateOf(false) }
 
   LaunchedEffect(state.feedbackMessage) {
     val msg = state.feedbackMessage
@@ -74,6 +94,10 @@ fun PosScreen(
       snackbarHostState.showSnackbar(msg)
       viewModel.clearFeedback()
     }
+  }
+
+  val selectedCustomer = remember(state.customers, state.selectedCustomerId) {
+    state.customers.firstOrNull { it.id == state.selectedCustomerId }
   }
 
   Scaffold(
@@ -94,9 +118,14 @@ fun PosScreen(
         ) {
           PosCatalogPane(
             state = state,
+            selectedCustomer = selectedCustomer,
             onSearchChange = viewModel::updateSearch,
             onSelectCategory = viewModel::selectCategory,
+            onOpenCustomerPicker = { showCustomerPicker = true },
+            onOpenQuickCustomer = { showQuickCustomerDialog = true },
             onProductClick = { selectingProduct = it },
+            onQuickAdd = viewModel::quickAddDefaultUnit,
+            onQuickDecrement = viewModel::quickDecrementDefaultUnit,
             modifier = Modifier.weight(1.35f).fillMaxHeight(),
           )
           Card(
@@ -140,9 +169,14 @@ fun PosScreen(
         Column(modifier = Modifier.fillMaxSize()) {
           PosCatalogPane(
             state = state,
+            selectedCustomer = selectedCustomer,
             onSearchChange = viewModel::updateSearch,
             onSelectCategory = viewModel::selectCategory,
+            onOpenCustomerPicker = { showCustomerPicker = true },
+            onOpenQuickCustomer = { showQuickCustomerDialog = true },
             onProductClick = { selectingProduct = it },
+            onQuickAdd = viewModel::quickAddDefaultUnit,
+            onQuickDecrement = viewModel::quickDecrementDefaultUnit,
             modifier = Modifier.weight(1f).fillMaxWidth(),
           )
 
@@ -159,11 +193,15 @@ fun PosScreen(
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
-              Column {
+              Column(modifier = Modifier.weight(1f)) {
+                val customerTag = selectedCustomer?.name ?: "Al contado"
                 Text(
-                  text = if (state.cartItems.isEmpty()) "Carrito vacío" else "${state.cartItems.size} línea(s) en carrito",
+                  text = if (state.cartItems.isEmpty()) "Carrito vacío • $customerTag"
+                  else "${state.cartItems.size} línea(s) • $customerTag",
                   style = MaterialTheme.typography.labelMedium,
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                   text = MoneyMath.format(state.totalBase, state.primaryCurrency),
@@ -173,6 +211,7 @@ fun PosScreen(
                   modifier = Modifier.testTag("pos_cart_bar_total"),
                 )
               }
+              Spacer(Modifier.width(8.dp))
               Button(
                 onClick = { showCheckoutDialog = true },
                 enabled = state.cartItems.isNotEmpty(),
@@ -188,6 +227,34 @@ fun PosScreen(
         }
       }
     }
+  }
+
+  if (showCustomerPicker) {
+    PosCustomerPickerDialog(
+      customers = state.customers,
+      selectedCustomerId = state.selectedCustomerId,
+      primaryCurrency = state.primaryCurrency,
+      onSelectCustomer = { custId ->
+        viewModel.selectCustomer(custId)
+        showCustomerPicker = false
+      },
+      onCreateNewClick = {
+        showCustomerPicker = false
+        showQuickCustomerDialog = true
+      },
+      onDismiss = { showCustomerPicker = false },
+    )
+  }
+
+  if (showQuickCustomerDialog) {
+    QuickCustomerDialog(
+      onCreate = { name, phone ->
+        viewModel.quickCreateCustomer(name, phone) {
+          showQuickCustomerDialog = false
+        }
+      },
+      onDismiss = { showQuickCustomerDialog = false },
+    )
   }
 
   selectingProduct?.let { item ->
@@ -240,9 +307,14 @@ fun PosScreen(
 @Composable
 private fun PosCatalogPane(
   state: PosUiState,
+  selectedCustomer: CustomerEntity?,
   onSearchChange: (String) -> Unit,
   onSelectCategory: (Long?) -> Unit,
+  onOpenCustomerPicker: () -> Unit,
+  onOpenQuickCustomer: () -> Unit,
   onProductClick: (ProductWithDetails) -> Unit,
+  onQuickAdd: (ProductWithDetails) -> Unit,
+  onQuickDecrement: (ProductWithDetails) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   LazyColumn(
@@ -260,6 +332,75 @@ private fun PosCatalogPane(
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth().testTag("pos_search_input"),
       )
+    }
+
+    // Barra rápida de Cliente para asignar ventas sin buscar en el checkout
+    item {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = if (selectedCustomer != null) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+          } else {
+            MaterialTheme.colorScheme.surface
+          },
+          tonalElevation = 2.dp,
+          modifier = Modifier
+            .weight(1f)
+            .height(48.dp)
+            .clickable(onClick = onOpenCustomerPicker)
+            .testTag("pos_bar_customer_selector"),
+        ) {
+          Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              modifier = Modifier.weight(1f),
+            ) {
+              Icon(
+                Icons.Filled.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+              )
+              Text(
+                text = selectedCustomer?.let {
+                  if (it.debtBalanceBase > BigDecimal.ZERO) {
+                    "${it.name} • Debe ${MoneyMath.format(it.debtBalanceBase, state.primaryCurrency)}"
+                  } else {
+                    it.name
+                  }
+                } ?: "Cliente al contado",
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+              )
+            }
+            Text(
+              text = "Cambiar",
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.primary,
+            )
+          }
+        }
+
+        OutlinedButton(
+          onClick = onOpenQuickCustomer,
+          shape = RoundedCornerShape(12.dp),
+          contentPadding = PaddingValues(horizontal = 12.dp),
+          modifier = Modifier.height(48.dp).testTag("pos_bar_quick_customer_btn"),
+        ) {
+          Icon(Icons.Filled.PersonAdd, contentDescription = "Nuevo cliente rápido", modifier = Modifier.size(18.dp))
+        }
+      }
     }
 
     if (state.categories.isNotEmpty()) {
@@ -314,11 +455,29 @@ private fun PosCatalogPane(
       }
     } else {
       items(state.filteredProducts, key = { it.product.id }) { item ->
+        val defaultUnitLabel = when {
+          item.product.modality != ProductModality.WEIGHT.code -> "u"
+          item.product.defaultSaleUnit == "KG" -> "kg"
+          item.product.defaultSaleUnit == "GRAM" -> "g"
+          else -> "lb"
+        }
+        val inCartQty = state.cartItems
+          .filter {
+            it.productWithDetails.product.id == item.product.id &&
+              it.unitLabel == defaultUnitLabel &&
+              it.overrideUnitSalePriceBase == null
+          }
+          .fold(BigDecimal.ZERO) { acc, line -> acc.add(line.enteredQuantity) }
+
         PosProductCard(
           item = item,
+          defaultUnitLabel = defaultUnitLabel,
+          inCartDefaultQty = inCartQty,
           gramsPerPound = state.gramsPerPound,
           primaryCurrency = state.primaryCurrency,
           onClick = { onProductClick(item) },
+          onQuickAdd = { onQuickAdd(item) },
+          onQuickDecrement = { onQuickDecrement(item) },
         )
       }
     }
@@ -328,9 +487,13 @@ private fun PosCatalogPane(
 @Composable
 private fun PosProductCard(
   item: ProductWithDetails,
+  defaultUnitLabel: String,
+  inCartDefaultQty: BigDecimal,
   gramsPerPound: BigDecimal,
   primaryCurrency: String,
   onClick: () -> Unit,
+  onQuickAdd: () -> Unit,
+  onQuickDecrement: () -> Unit,
 ) {
   val product = item.product
   val isWeight = product.modality == ProductModality.WEIGHT.code
@@ -345,6 +508,12 @@ private fun PosProductCard(
   } else {
     "${MoneyMath.formatQuantity(product.stockBaseQty)} u"
   }
+  val quickButtonLabel = when (defaultUnitLabel) {
+    "g" -> "+100 g"
+    "kg" -> "+1 kg"
+    "lb" -> "+1 lb"
+    else -> "+1"
+  }
 
   Card(
     shape = MaterialTheme.shapes.medium,
@@ -355,7 +524,7 @@ private fun PosProductCard(
       .testTag("pos_product_card_${product.id}"),
   ) {
     Row(
-      modifier = Modifier.fillMaxWidth().padding(14.dp),
+      modifier = Modifier.fillMaxWidth().padding(12.dp),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -379,20 +548,189 @@ private fun PosProductCard(
           }
         }
         Column {
-          Text(product.name, style = MaterialTheme.typography.titleMedium)
+          Text(product.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
           Text(
-            text = listOfNotNull(item.category?.name, stockText).joinToString(" • "),
+            text = "${MoneyMath.format(product.salePrice, primaryCurrency)}$unitSuffix • $stockText",
             style = MaterialTheme.typography.bodySmall,
-            color = if (item.isOutOfStock) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (item.isOutOfStock) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
           )
         }
       }
-      Text(
-        text = "${MoneyMath.format(product.salePrice, primaryCurrency)}$unitSuffix",
-        style = MonoMetricMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-      )
+
+      Spacer(Modifier.width(8.dp))
+
+      if (inCartDefaultQty > BigDecimal.ZERO) {
+        Surface(
+          shape = RoundedCornerShape(10.dp),
+          color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+              onClick = onQuickDecrement,
+              modifier = Modifier.size(42.dp).testTag("pos_quick_dec_${product.id}"),
+            ) {
+              Icon(Icons.Filled.Remove, contentDescription = "Quitar uno", modifier = Modifier.size(18.dp))
+            }
+            Text(
+              text = "${MoneyMath.formatQuantity(inCartDefaultQty)} $defaultUnitLabel",
+              style = MaterialTheme.typography.labelLarge,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            IconButton(
+              onClick = onQuickAdd,
+              modifier = Modifier.size(42.dp).testTag("pos_quick_inc_${product.id}"),
+            ) {
+              Icon(Icons.Filled.Add, contentDescription = "Agregar otro", modifier = Modifier.size(18.dp))
+            }
+          }
+        }
+      } else {
+        FilledTonalButton(
+          onClick = onQuickAdd,
+          shape = RoundedCornerShape(10.dp),
+          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+          colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.primary,
+          ),
+          modifier = Modifier.height(42.dp).testTag("pos_quick_add_${product.id}"),
+        ) {
+          Text(quickButtonLabel, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+        }
+      }
     }
   }
 }
+
+@Composable
+private fun PosCustomerPickerDialog(
+  customers: List<CustomerEntity>,
+  selectedCustomerId: Long?,
+  primaryCurrency: String,
+  onSelectCustomer: (Long?) -> Unit,
+  onCreateNewClick: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  var query by remember { mutableStateOf("") }
+  val filtered = remember(customers, query) {
+    val q = query.trim().lowercase()
+    if (q.isEmpty()) customers
+    else customers.filter {
+      it.name.lowercase().contains(q) || it.phone.lowercase().contains(q)
+    }
+  }
+
+  Dialog(
+    onDismissRequest = onDismiss,
+    properties = DialogProperties(usePlatformDefaultWidth = false),
+  ) {
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(14.dp)
+        .widthIn(max = 560.dp)
+        .heightIn(max = 760.dp),
+      shape = MaterialTheme.shapes.large,
+      color = MaterialTheme.colorScheme.surface,
+      tonalElevation = 6.dp,
+    ) {
+      Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Text("Elegir Cliente", style = MaterialTheme.typography.titleLarge)
+          IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.minimumInteractiveComponentSize(),
+          ) {
+            Icon(Icons.Filled.Close, contentDescription = "Cerrar selector")
+          }
+        }
+
+        OutlinedTextField(
+          value = query,
+          onValueChange = { query = it },
+          placeholder = { Text("Buscar por nombre o teléfono...") },
+          leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+          singleLine = true,
+          shape = RoundedCornerShape(12.dp),
+          modifier = Modifier.fillMaxWidth().testTag("pos_customer_picker_search"),
+        )
+
+        OutlinedButton(
+          onClick = { onSelectCustomer(null) },
+          shape = RoundedCornerShape(10.dp),
+          modifier = Modifier.fillMaxWidth().height(48.dp).testTag("pos_customer_walkin_btn"),
+        ) {
+          Text(
+            text = if (selectedCustomerId == null) "✓ Cliente al contado (Activo)" else "Cliente al contado",
+            fontWeight = FontWeight.Medium,
+          )
+        }
+
+        HorizontalDivider()
+
+        LazyColumn(
+          modifier = Modifier.weight(1f, fill = false).heightIn(max = 360.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+          items(filtered, key = { it.id }) { customer ->
+            val isSelected = customer.id == selectedCustomerId
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+              } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+              },
+              modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSelectCustomer(customer.id) }
+                .testTag("pos_customer_pick_${customer.id}"),
+            ) {
+              Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(customer.name, style = MaterialTheme.typography.titleSmall)
+                  if (customer.phone.isNotBlank()) {
+                    Text(customer.phone, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  }
+                }
+                if (customer.debtBalanceBase > BigDecimal.ZERO) {
+                  Text(
+                    text = "Debe ${MoneyMath.format(customer.debtBalanceBase, primaryCurrency)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                  )
+                }
+              }
+            }
+          }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          TextButton(onClick = onDismiss) { Text("Cerrar") }
+          Button(
+            onClick = onCreateNewClick,
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.height(48.dp).testTag("pos_picker_new_customer_btn"),
+          ) {
+            Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Nuevo Cliente")
+          }
+        }
+      }
+    }
+  }
+}
+
