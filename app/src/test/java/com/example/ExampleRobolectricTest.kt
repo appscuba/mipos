@@ -258,6 +258,21 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithText("1 productos").fetchSemanticsNodes().isNotEmpty()
     }
 
+    // Abrir caja antes de cualquier venta: el POS bloquea ventas si no hay apertura.
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
+    }
+
     // 2. Ir al POS -> seleccionar Arroz -> ½ lb (0.5 lb = 275.00 CUP)
     composeTestRule.onNodeWithTag("nav_tab_pos").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -484,6 +499,21 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithText("1 productos").fetchSemanticsNodes().isNotEmpty()
     }
 
+    // Abrir caja antes de cualquier venta: el POS bloquea ventas si no hay apertura.
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
+    }
+
     // Ir al POS -> crear cliente rápido directo en la barra superior -> añadir con 1 toque -> vender fiado
     composeTestRule.onNodeWithTag("nav_tab_pos").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -572,6 +602,21 @@ class ExampleRobolectricTest {
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithText("1 productos").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // Abrir caja antes de cualquier venta: el POS bloquea ventas si no hay apertura.
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
     }
 
     // 3. POS -> añadir Jugo (80 CUP) -> probar vuelto con 100 en Efectivo y en Transferencia
