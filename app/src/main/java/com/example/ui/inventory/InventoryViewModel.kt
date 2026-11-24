@@ -160,9 +160,9 @@ class InventoryViewModel(
           return@launch
         }
         val id = inventoryRepository.saveProduct(request)
-        feedback.value = if (isNewProduct && plan == PlanStatus.FREE && currentCount + 1 >= PlanLimits.PRODUCT_WARNING_AT) {
+        feedback.value = (if (isNewProduct && plan == PlanStatus.FREE && currentCount + 1 >= PlanLimits.PRODUCT_WARNING_AT) {
           "Producto guardado correctamente. Aviso: te acercas al límite de 30 productos del plan gratuito."
-        } else "Producto guardado correctamente." to false
+        } else "Producto guardado correctamente.") to false
         onSaved(id)
       } catch (e: Exception) {
         feedback.value = (e.message ?: "No se pudo guardar el producto.") to true
