@@ -110,6 +110,7 @@ fun PosScreen(
         .padding(innerPadding),
     ) {
       val isWide = maxWidth >= 600.dp
+      val isCompact = maxWidth < 360.dp
 
       if (isWide) {
         Row(
@@ -189,7 +190,7 @@ fun PosScreen(
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (maxWidth < 360.dp) 10.dp else 16.dp, vertical = 8.dp),
+                .padding(horizontal = if (isCompact) 10.dp else 16.dp, vertical = 8.dp),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -223,7 +224,7 @@ fun PosScreen(
               ) {
                 Icon(Icons.Filled.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(if (maxWidth < 360.dp) "Cobrar" else "Cobrar (${state.cartItems.size})", maxLines = 1, softWrap = false)
+                Text(if (isCompact) "Cobrar" else "Cobrar (${state.cartItems.size})", maxLines = 1, softWrap = false)
               }
             }
           }
