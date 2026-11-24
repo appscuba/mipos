@@ -32,11 +32,20 @@ import com.example.data.local.db.entity.SaleEntity
 import com.example.data.local.db.entity.SupplierEntity
 import com.example.data.local.db.entity.UserEntity
 import com.example.data.preferences.AppPreferencesDataStore
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.math.BigDecimal
+
+@Serializable
+data class WorkspacePreferencesDto(
+  val themeMode: String = "DARK",
+  val activeBusinessId: Long = 0L,
+  val activeUserId: Long = 0L,
+  val lastBackupTimestamp: Long = 0L,
+)
 
 @Serializable
 data class FullBackupPayload(
@@ -67,6 +76,8 @@ data class FullBackupPayload(
   val inventoryMovements: List<InventoryMovementDto>,
   val inventoryAdjustments: List<InventoryAdjustmentDto>,
   val auditLogs: List<AuditLogDto>,
+  val preferences: WorkspacePreferencesDto? = null,
+  val businessLogosBase64: Map<Long, String> = emptyMap(),
 )
 
 @Serializable data class BusinessDto(val id: Long, val name: String, val businessType: String, val logoUri: String?, val phone: String, val email: String, val address: String, val taxId: String, val primaryCurrency: String, val isActive: Boolean, val createdAt: Long, val updatedAt: Long)
@@ -101,6 +112,16 @@ data class RestoreSummary(
   val salesCount: Int,
   val purchasesCount: Int,
   val safetyBackupPath: String?,
+  val usersCount: Int = 0,
+  val categoriesCount: Int = 0,
+  val customersCount: Int = 0,
+  val suppliersCount: Int = 0,
+  val cashSessionsCount: Int = 0,
+  val expensesCount: Int = 0,
+  val debtsCount: Int = 0,
+  val paymentsCount: Int = 0,
+  val inventoryMovementsCount: Int = 0,
+  val auditLogsCount: Int = 0,
 )
 
 class BackupRepository(
@@ -116,8 +137,9 @@ class BackupRepository(
     passphrase: String?,
     actorUserId: Long? = null,
     recordAuditAndTimestamp: Boolean = true,
+    context: Context? = null,
   ): ByteArray {
-    val payload = buildFullPayload()
+    val payload = buildFullPayload(context)
     val businessName = payload.businesses.firstOrNull { it.id == businessId }?.name
       ?: payload.businesses.firstOrNull()?.name
       ?: "Stock+"
@@ -134,7 +156,7 @@ class BackupRepository(
             userId = actorUserId,
             action = "BACKUP_EXPORTED",
             entityType = "BACKUP",
-            details = "Respaldo cifrado exportado (${payload.products.size} prod., ${payload.sales.size} ventas)",
+            details = "Respaldo completo cifrado (${payload.users.size} usu., ${payload.products.size} prod., ${payload.sales.size} ventas, ${payload.cashSessions.size} cajas, ${payload.expenses.size} gastos)",
             timestamp = now,
           ),
         )
@@ -174,11 +196,32 @@ class BackupRepository(
         passphrase = null,
         actorUserId = actorUserId,
         recordAuditAndTimestamp = false,
+        context = context,
       )
       val dir = File(context.filesDir, "auto_backups").apply { mkdirs() }
       val file = File(dir, "pre_restore_${System.currentTimeMillis()}.gcbk")
       file.writeBytes(safetyBytes)
       safetyPath = file.absolutePath
+    }
+
+    // Restore embedded business logos cleanly into internal app storage
+    val restoredLogoUris = mutableMapOf<Long, String>()
+    if (payload.businessLogosBase64.isNotEmpty()) {
+      val logosDir = File(context.filesDir, "restored_logos").apply { mkdirs() }
+      val decoder = java.util.Base64.getDecoder()
+      for ((bizId, base64Data) in payload.businessLogosBase64) {
+        runCatching {
+          val bytes = decoder.decode(base64Data)
+          val outFile = File(logosDir, "business_${bizId}_logo.bin")
+          outFile.writeBytes(bytes)
+          restoredLogoUris[bizId] = android.net.Uri.fromFile(outFile).toString()
+        }
+      }
+    }
+
+    val businessesToInsert = payload.businesses.map { dto ->
+      val localRestoredUri = restoredLogoUris[dto.id]
+      if (localRestoredUri != null) dto.copy(logoUri = localRestoredUri).toEntity() else dto.toEntity()
     }
 
     db.withTransaction {
@@ -208,7 +251,7 @@ class BackupRepository(
       backupDao.clearRoles()
       backupDao.clearBusinesses()
 
-      backupDao.insertBusinesses(payload.businesses.map { it.toEntity() })
+      backupDao.insertBusinesses(businessesToInsert)
       backupDao.insertRoles(payload.roles.map { it.toEntity() })
       backupDao.insertPermissions(payload.permissions.map { it.toEntity() })
       backupDao.insertRolePermissions(payload.rolePermissions.map { RolePermissionCrossRef(it.roleId, it.permissionId) })
@@ -235,20 +278,36 @@ class BackupRepository(
       backupDao.insertAuditLogs(payload.auditLogs.map { it.toEntity() })
     }
 
-    val restoredBiz = payload.businesses.firstOrNull { it.isActive } ?: payload.businesses.first()
-    val restoredOwner = payload.users.firstOrNull { it.businessId == restoredBiz.id && it.isActive }
+    val savedPrefs = payload.preferences
+    val restoredBiz = savedPrefs?.activeBusinessId?.let { id ->
+      payload.businesses.firstOrNull { it.id == id }
+    } ?: payload.businesses.firstOrNull { it.isActive } ?: payload.businesses.first()
+
+    val restoredUser = savedPrefs?.activeUserId?.let { id ->
+      payload.users.firstOrNull { it.id == id && it.businessId == restoredBiz.id && it.isActive }
+    } ?: payload.users.firstOrNull { it.businessId == restoredBiz.id && it.isActive }
       ?: payload.users.firstOrNull()
+
     preferences.markOnboardingCompleted(
       businessId = restoredBiz.id,
-      userId = restoredOwner?.id ?: 1L,
+      userId = restoredUser?.id ?: 1L,
     )
+    savedPrefs?.themeMode?.let { themeName ->
+      com.example.ui.theme.ThemeMode.entries.firstOrNull { it.name == themeName }?.let { mode ->
+        preferences.setThemeMode(mode)
+      }
+    }
+    if ((savedPrefs?.lastBackupTimestamp ?: 0L) > 0L) {
+      preferences.updateLastBackupTimestamp(savedPrefs!!.lastBackupTimestamp)
+    }
+
     securityDao.insertAuditLog(
       AuditLogEntity(
         businessId = restoredBiz.id,
-        userId = restoredOwner?.id,
+        userId = restoredUser?.id,
         action = "BACKUP_RESTORED",
         entityType = "BACKUP",
-        details = "Respaldo restaurado (${payload.products.size} prod., ${payload.sales.size} ventas)",
+        details = "Respaldo completo restaurado (${payload.users.size} usu., ${payload.products.size} prod., ${payload.sales.size} ventas, ${payload.cashSessions.size} cajas, ${payload.debts.size} deudas)",
       ),
     )
 
@@ -258,36 +317,77 @@ class BackupRepository(
       salesCount = payload.sales.size,
       purchasesCount = payload.purchases.size,
       safetyBackupPath = safetyPath,
+      usersCount = payload.users.size,
+      categoriesCount = payload.categories.size,
+      customersCount = payload.customers.size,
+      suppliersCount = payload.suppliers.size,
+      cashSessionsCount = payload.cashSessions.size,
+      expensesCount = payload.expenses.size,
+      debtsCount = payload.debts.size,
+      paymentsCount = payload.payments.size,
+      inventoryMovementsCount = payload.inventoryMovements.size,
+      auditLogsCount = payload.auditLogs.size,
     )
   }
 
-  private suspend fun buildFullPayload(): FullBackupPayload = FullBackupPayload(
-    businesses = backupDao.getAllBusinesses().map { it.toDto() },
-    roles = backupDao.getAllRoles().map { it.toDto() },
-    permissions = backupDao.getAllPermissions().map { it.toDto() },
-    rolePermissions = backupDao.getAllRolePermissions().map { RolePermissionDto(it.roleId, it.permissionId) },
-    users = backupDao.getAllUsers().map { it.toDto() },
-    settings = backupDao.getAllSettings().map { it.toDto() },
-    exchangeRates = backupDao.getAllExchangeRates().map { it.toDto() },
-    categories = backupDao.getAllCategories().map { it.toDto() },
-    products = backupDao.getAllProducts().map { it.toDto() },
-    presentations = backupDao.getAllPresentations().map { it.toDto() },
-    suppliers = backupDao.getAllSuppliers().map { it.toDto() },
-    purchases = backupDao.getAllPurchases().map { it.toDto() },
-    purchaseDetails = backupDao.getAllPurchaseDetails().map { it.toDto() },
-    customers = backupDao.getAllCustomers().map { it.toDto() },
-    sales = backupDao.getAllSales().map { it.toDto() },
-    saleDetails = backupDao.getAllSaleDetails().map { it.toDto() },
-    payments = backupDao.getAllPayments().map { it.toDto() },
-    debts = backupDao.getAllDebts().map { it.toDto() },
-    expenseCategories = backupDao.getAllExpenseCategories().map { it.toDto() },
-    expenses = backupDao.getAllExpenses().map { it.toDto() },
-    cashSessions = backupDao.getAllCashSessions().map { it.toDto() },
-    cashMovements = backupDao.getAllCashMovements().map { it.toDto() },
-    inventoryMovements = backupDao.getAllInventoryMovements().map { it.toDto() },
-    inventoryAdjustments = backupDao.getAllInventoryAdjustments().map { it.toDto() },
-    auditLogs = backupDao.getAllAuditLogs().map { it.toDto() },
-  )
+  private suspend fun buildFullPayload(context: Context?): FullBackupPayload {
+    val businesses = backupDao.getAllBusinesses().map { it.toDto() }
+    val currentPrefs = preferences.preferencesFlow.firstOrNull()?.let { p ->
+      WorkspacePreferencesDto(
+        themeMode = p.themeMode.name,
+        activeBusinessId = p.activeBusinessId,
+        activeUserId = p.activeUserId,
+        lastBackupTimestamp = p.lastBackupTimestamp,
+      )
+    }
+    val logoMap = encodeBusinessLogos(context, businesses)
+    return FullBackupPayload(
+      businesses = businesses,
+      roles = backupDao.getAllRoles().map { it.toDto() },
+      permissions = backupDao.getAllPermissions().map { it.toDto() },
+      rolePermissions = backupDao.getAllRolePermissions().map { RolePermissionDto(it.roleId, it.permissionId) },
+      users = backupDao.getAllUsers().map { it.toDto() },
+      settings = backupDao.getAllSettings().map { it.toDto() },
+      exchangeRates = backupDao.getAllExchangeRates().map { it.toDto() },
+      categories = backupDao.getAllCategories().map { it.toDto() },
+      products = backupDao.getAllProducts().map { it.toDto() },
+      presentations = backupDao.getAllPresentations().map { it.toDto() },
+      suppliers = backupDao.getAllSuppliers().map { it.toDto() },
+      purchases = backupDao.getAllPurchases().map { it.toDto() },
+      purchaseDetails = backupDao.getAllPurchaseDetails().map { it.toDto() },
+      customers = backupDao.getAllCustomers().map { it.toDto() },
+      sales = backupDao.getAllSales().map { it.toDto() },
+      saleDetails = backupDao.getAllSaleDetails().map { it.toDto() },
+      payments = backupDao.getAllPayments().map { it.toDto() },
+      debts = backupDao.getAllDebts().map { it.toDto() },
+      expenseCategories = backupDao.getAllExpenseCategories().map { it.toDto() },
+      expenses = backupDao.getAllExpenses().map { it.toDto() },
+      cashSessions = backupDao.getAllCashSessions().map { it.toDto() },
+      cashMovements = backupDao.getAllCashMovements().map { it.toDto() },
+      inventoryMovements = backupDao.getAllInventoryMovements().map { it.toDto() },
+      inventoryAdjustments = backupDao.getAllInventoryAdjustments().map { it.toDto() },
+      auditLogs = backupDao.getAllAuditLogs().map { it.toDto() },
+      preferences = currentPrefs,
+      businessLogosBase64 = logoMap,
+    )
+  }
+
+  private fun encodeBusinessLogos(context: Context?, businesses: List<BusinessDto>): Map<Long, String> {
+    if (context == null) return emptyMap()
+    val result = mutableMapOf<Long, String>()
+    val encoder = java.util.Base64.getEncoder()
+    for (biz in businesses) {
+      val uriStr = biz.logoUri ?: continue
+      runCatching {
+        val uri = android.net.Uri.parse(uriStr)
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        if (bytes != null && bytes.isNotEmpty() && bytes.size <= 1_500_000) {
+          result[biz.id] = encoder.encodeToString(bytes)
+        }
+      }
+    }
+    return result
+  }
 }
 
 private fun BigDecimal.str(): String = toPlainString()

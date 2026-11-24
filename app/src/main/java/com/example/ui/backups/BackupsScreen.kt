@@ -135,7 +135,7 @@ fun BackupsScreen(
                 modifier = Modifier.testTag("backups_last_timestamp"),
               )
               Text(
-                text = "Todos los datos (productos, movimientos, compras, ventas, clientes, proveedores, caja, gastos y usuarios) se empaquetan con suma SHA-256 y cifrado AES-GCM sin permisos de almacenamiento invasivos.",
+                text = "Respaldo integral 100% de toda la app: usuarios, roles y PIN, inventario (productos, categorías, presentaciones, movimientos y ajustes), ventas, compras, clientes, proveedores, deudas, cajas y movimientos, gastos, tasas de cambio, auditoría, apariencia y configuración, protegidos con AES-256-GCM y SHA-256.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
@@ -169,7 +169,7 @@ fun BackupsScreen(
               Button(
                 onClick = {
                   val fileStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date())
-                  createDocumentLauncher.launch("gestor_comercial_$fileStamp.gcbk")
+                  createDocumentLauncher.launch("stock_plus_$fileStamp.gcbk")
                 },
                 enabled = !state.isBusy,
                 shape = RoundedCornerShape(12.dp),
@@ -239,7 +239,7 @@ fun BackupsScreen(
                 Column {
                   Text("Última restauración exitosa", style = MaterialTheme.typography.titleSmall)
                   Text(
-                    "${summary.businessName}: ${summary.productsCount} productos, ${summary.purchasesCount} compras, ${summary.salesCount} ventas.",
+                    "${summary.businessName}: ${summary.usersCount} usuarios, ${summary.productsCount} productos (${summary.categoriesCount} categorías), ${summary.salesCount} ventas, ${summary.purchasesCount} compras, ${summary.customersCount} clientes, ${summary.suppliersCount} proveedores, ${summary.cashSessionsCount} cajas, ${summary.expensesCount} gastos y ${summary.debtsCount} deudas.",
                     style = MaterialTheme.typography.bodySmall,
                   )
                 }

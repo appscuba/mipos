@@ -1,18 +1,24 @@
 package com.example.ui.setup
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
+import com.example.core.security.BackupFileEnvelope
 import com.example.data.preferences.AppPreferencesDataStore
+import com.example.data.repository.BackupRepository
 import com.example.data.repository.BusinessRepository
 import com.example.data.repository.InitialBusinessSetupRequest
 import com.example.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
 data class SetupUiState(
@@ -31,11 +37,15 @@ data class SetupUiState(
   val themeMode: ThemeMode = ThemeMode.DARK,
   val errorMessage: String? = null,
   val isSaving: Boolean = false,
+  val pendingRestoreBytes: ByteArray? = null,
+  val pendingRestoreEnvelope: BackupFileEnvelope? = null,
+  val isRestoringBackup: Boolean = false,
 )
 
 class SetupViewModel(
   private val businessRepository: BusinessRepository,
   private val preferences: AppPreferencesDataStore,
+  private val backupRepository: BackupRepository? = null,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(SetupUiState())
@@ -58,6 +68,70 @@ class SetupViewModel(
     _uiState.update { it.copy(themeMode = mode) }
     viewModelScope.launch {
       preferences.setThemeMode(mode)
+    }
+  }
+
+  fun loadBackupForRestore(context: Context, uri: Uri) {
+    val repo = backupRepository ?: return
+    viewModelScope.launch {
+      _uiState.update { it.copy(isRestoringBackup = true, errorMessage = null) }
+      try {
+        val bytes = withContext(Dispatchers.IO) {
+          context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("No se pudo leer el archivo seleccionado.")
+        }
+        val envelope = repo.inspectBackup(bytes)
+        _uiState.update {
+          it.copy(
+            isRestoringBackup = false,
+            pendingRestoreBytes = bytes,
+            pendingRestoreEnvelope = envelope,
+          )
+        }
+      } catch (e: Exception) {
+        _uiState.update {
+          it.copy(
+            isRestoringBackup = false,
+            errorMessage = e.message ?: "Archivo de respaldo inválido.",
+          )
+        }
+      }
+    }
+  }
+
+  fun clearPendingRestore() {
+    _uiState.update {
+      it.copy(pendingRestoreBytes = null, pendingRestoreEnvelope = null, isRestoringBackup = false)
+    }
+  }
+
+  fun confirmRestoreBackup(context: Context, passphrase: String?, onCompleted: () -> Unit) {
+    val repo = backupRepository ?: return
+    val bytes = _uiState.value.pendingRestoreBytes ?: return
+    viewModelScope.launch {
+      _uiState.update { it.copy(isRestoringBackup = true, errorMessage = null) }
+      try {
+        withContext(Dispatchers.IO) {
+          repo.restoreEncryptedBackup(
+            context = context,
+            fileBytes = bytes,
+            passphrase = passphrase,
+            currentBusinessId = 0L,
+            actorUserId = null,
+          )
+        }
+        _uiState.value = SetupUiState(themeMode = _uiState.value.themeMode)
+        onCompleted()
+      } catch (e: Exception) {
+        _uiState.update {
+          it.copy(
+            isRestoringBackup = false,
+            pendingRestoreBytes = null,
+            pendingRestoreEnvelope = null,
+            errorMessage = e.message ?: "No se pudo restaurar el respaldo.",
+          )
+        }
+      }
     }
   }
 
@@ -121,9 +195,10 @@ class SetupViewModel(
   class Factory(
     private val businessRepository: BusinessRepository,
     private val preferences: AppPreferencesDataStore,
+    private val backupRepository: BackupRepository? = null,
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      SetupViewModel(businessRepository, preferences) as T
+      SetupViewModel(businessRepository, preferences, backupRepository) as T
   }
 }

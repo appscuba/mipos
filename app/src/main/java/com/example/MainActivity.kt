@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                 factory = SetupViewModel.Factory(
                   businessRepository = container.businessRepository,
                   preferences = container.preferences,
+                  backupRepository = container.backupRepository,
                 ),
               )
               SetupScreen(

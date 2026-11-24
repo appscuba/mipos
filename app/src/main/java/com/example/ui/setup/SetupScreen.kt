@@ -34,8 +34,10 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -45,27 +47,38 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.R
 import com.example.ui.theme.ThemeMode
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val BUSINESS_TYPES = listOf(
   "Tienda / Bodega",
@@ -84,10 +97,20 @@ fun SetupScreen(
   onSetupComplete: () -> Unit,
 ) {
   val state by viewModel.uiState.collectAsStateWithLifecycle()
+  val context = LocalContext.current
+  var restorePassphrase by remember { mutableStateOf("") }
   val photoPickerLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia(),
   ) { uri: Uri? ->
     viewModel.updateLogoUri(uri?.toString())
+  }
+  val restoreFileLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.OpenDocument(),
+  ) { uri: Uri? ->
+    if (uri != null) {
+      restorePassphrase = ""
+      viewModel.loadBackupForRestore(context, uri)
+    }
   }
 
   Scaffold(
@@ -147,6 +170,21 @@ fun SetupScreen(
               )
             }
           }
+        }
+
+        // Quick restore from existing backup
+        OutlinedButton(
+          onClick = { restoreFileLauncher.launch(arrayOf("*/*")) },
+          enabled = !state.isSaving && !state.isRestoringBackup,
+          shape = RoundedCornerShape(14.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .testTag("setup_restore_backup_button"),
+        ) {
+          Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+          Spacer(Modifier.width(8.dp))
+          Text("¿Ya tienes copia de seguridad? Restaurar (.gcbk)")
         }
 
         // Theme quick choice
@@ -446,5 +484,56 @@ fun SetupScreen(
         Spacer(Modifier.height(16.dp))
       }
     }
+  }
+
+  state.pendingRestoreEnvelope?.let { envelope ->
+    val dateFmt = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
+    AlertDialog(
+      onDismissRequest = { if (!state.isRestoringBackup) viewModel.clearPendingRestore() },
+      title = { Text("Restaurar Copia de Seguridad") },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("Negocio en respaldo: ${envelope.businessName}", style = MaterialTheme.typography.titleSmall)
+          Text(
+            "Fecha: ${dateFmt.format(Date(envelope.createdAt))} • Versión ${envelope.schemaVersion}",
+            style = MaterialTheme.typography.bodySmall,
+          )
+          Text(
+            "Se restaurarán todos los usuarios, productos, inventario, ventas, compras, clientes, deudas, caja, gastos y configuración.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          if (envelope.requiresPassphrase) {
+            OutlinedTextField(
+              value = restorePassphrase,
+              onValueChange = { restorePassphrase = it },
+              label = { Text("Contraseña del respaldo *") },
+              singleLine = true,
+              visualTransformation = PasswordVisualTransformation(),
+              modifier = Modifier.fillMaxWidth().testTag("setup_restore_passphrase_input"),
+            )
+          }
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            viewModel.confirmRestoreBackup(context, restorePassphrase.ifBlank { null }, onSetupComplete)
+          },
+          enabled = !state.isRestoringBackup && (!envelope.requiresPassphrase || restorePassphrase.isNotBlank()),
+          modifier = Modifier.minimumInteractiveComponentSize().testTag("setup_restore_confirm_button"),
+        ) {
+          Text("Restaurar Todo")
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = viewModel::clearPendingRestore,
+          enabled = !state.isRestoringBackup,
+        ) {
+          Text("Cancelar")
+        }
+      },
+    )
   }
 }

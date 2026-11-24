@@ -100,6 +100,7 @@ class BackupsViewModel(
             businessId = bizId,
             passphrase = passphrase,
             actorUserId = currentUserIdProvider(),
+            context = context,
           )
         }
         withContext(Dispatchers.IO) {
@@ -128,6 +129,7 @@ class BackupsViewModel(
             businessId = bizId,
             passphrase = passphrase,
             actorUserId = currentUserIdProvider(),
+            context = context,
           )
         }
         val destFile = withContext(Dispatchers.IO) {
@@ -182,7 +184,7 @@ class BackupsViewModel(
         lastRestoreSummary.value = summary
         pendingRestoreBytes.value = null
         pendingEnvelope.value = null
-        feedbackMessage.value = "Respaldo restaurado: ${summary.businessName} (${summary.productsCount} productos)"
+        feedbackMessage.value = "Respaldo completo restaurado: ${summary.businessName} (${summary.usersCount} usu., ${summary.productsCount} prod., ${summary.salesCount} ventas)"
       } catch (e: Exception) {
         feedbackMessage.value = e.message ?: "No se pudo restaurar el respaldo."
       } finally {
