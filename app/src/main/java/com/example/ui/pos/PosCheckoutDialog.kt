@@ -617,7 +617,11 @@ fun PosCartCheckoutContent(
                 )
               }
               Row(verticalAlignment = Alignment.CenterVertically) {
-                val step = if (line.unitLabel == "lb") BigDecimal("0.25") else BigDecimal.ONE
+                val step = when (line.unitLabel) {
+                  "lb", "kg" -> BigDecimal("0.25")
+                  "g" -> BigDecimal("100")
+                  else -> BigDecimal.ONE
+                }
                 IconButton(
                   onClick = { onUpdateQty(line.lineId, line.enteredQuantity.subtract(step)) },
                   modifier = Modifier.size(40.dp),
