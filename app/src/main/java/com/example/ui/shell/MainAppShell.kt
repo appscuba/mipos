@@ -504,6 +504,11 @@ fun MainAppShell(
               CashRegisterScreen(viewModel = cashVm)
             }
             composable<AppDestination.Currencies> {
+              val prefs = appState.preferences
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              if (isFree) {
+                LicenseRequiredScreen("Monedas y tasas", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
+              } else {
               val currenciesVm: CurrenciesViewModel = viewModel(
                 factory = CurrenciesViewModel.Factory(
                   businessIdFlow = activeBusinessIdFlow,
@@ -512,8 +517,14 @@ fun MainAppShell(
                 ),
               )
               CurrenciesScreen(viewModel = currenciesVm)
+              }
             }
             composable<AppDestination.Reports> {
+              val prefs = appState.preferences
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              if (isFree) {
+                LicenseRequiredScreen("Reportes", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
+              } else {
               if (!activeSession.hasPermission(AppPermissions.REPORTS_COST_PROFIT)) {
                 ModuleRoadmapScreen(
                   title = "Reportes Restringidos",
@@ -533,6 +544,7 @@ fun MainAppShell(
                 )
                 ReportsScreen(viewModel = reportsVm)
               }
+              }
             }
             composable<AppDestination.UsersAudit> {
               val usersVm: UsersAuditViewModel = viewModel(
@@ -544,6 +556,11 @@ fun MainAppShell(
               UsersAuditScreen(viewModel = usersVm)
             }
             composable<AppDestination.Backups> {
+              val prefs = appState.preferences
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              if (isFree) {
+                LicenseRequiredScreen("Respaldos", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
+              } else {
               val backupsVm: BackupsViewModel = viewModel(
                 factory = BackupsViewModel.Factory(
                   businessIdFlow = activeBusinessIdFlow,
@@ -554,6 +571,7 @@ fun MainAppShell(
                 ),
               )
               BackupsScreen(viewModel = backupsVm)
+              }
             }
             composable<AppDestination.BusinessSettings> {
               val settingsVm: BusinessSettingsViewModel = viewModel(
