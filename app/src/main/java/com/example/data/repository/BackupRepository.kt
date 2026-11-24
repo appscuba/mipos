@@ -120,7 +120,7 @@ class BackupRepository(
     val payload = buildFullPayload()
     val businessName = payload.businesses.firstOrNull { it.id == businessId }?.name
       ?: payload.businesses.firstOrNull()?.name
-      ?: "Gestor Comercial"
+      ?: "Stock+"
     val plainJson = json.encodeToString(payload)
     val encrypted = BackupCrypto.encryptBackup(plainJson, businessName, passphrase)
 

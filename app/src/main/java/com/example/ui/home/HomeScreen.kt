@@ -130,7 +130,7 @@ fun HomeScreen(
 
               Column(modifier = Modifier.weight(1f)) {
                 Text(
-                  text = business?.name ?: "Gestor Comercial",
+                  text = business?.name ?: "Stock+",
                   style = MaterialTheme.typography.headlineSmall,
                   modifier = Modifier.testTag("home_business_name"),
                 )

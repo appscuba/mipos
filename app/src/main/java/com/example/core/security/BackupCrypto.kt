@@ -87,7 +87,7 @@ object BackupCrypto {
       throw IllegalArgumentException("Formato de respaldo inválido o archivo dañado.", e)
     }
     require(envelope.magic == BackupFileEnvelope.MAGIC_HEADER) {
-      "Este archivo no corresponde a un respaldo de Gestor Comercial."
+      "Este archivo no corresponde a un respaldo de Stock+."
     }
     require(envelope.schemaVersion in 1..BackupFileEnvelope.CURRENT_SCHEMA_VERSION) {
       "Versión de respaldo incompatible (${envelope.schemaVersion})."

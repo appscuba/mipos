@@ -24,6 +24,7 @@ val MutedSlateText = Color(0xFF4B5978)
 val SubtleBorderLight = Color(0xFFD2DCEB)
 
 // Semantic Status Tokens
+val AmberContainerDark = Color(0xFF3A280E)
 val EmeraldSuccess = Color(0xFF22C55E)
 val EmeraldContainerDark = Color(0xFF123526)
 val CoralDanger = Color(0xFFEF4444)

@@ -22,7 +22,7 @@ import java.io.File
 
 data class BackupsUiState(
   val businessId: Long = 0L,
-  val businessName: String = "Gestor Comercial",
+  val businessName: String = "Stock+",
   val lastBackupTimestamp: Long = 0L,
   val pendingRestoreBytes: ByteArray? = null,
   val pendingEnvelope: BackupFileEnvelope? = null,
@@ -66,7 +66,7 @@ class BackupsViewModel(
 
     BackupsUiState(
       businessId = bizId,
-      businessName = workspace.business?.name ?: "Gestor Comercial",
+      businessName = workspace.business?.name ?: "Stock+",
       lastBackupTimestamp = prefs.lastBackupTimestamp,
       pendingRestoreBytes = pendingBytes,
       pendingEnvelope = envelope,

@@ -23,7 +23,7 @@ object ReceiptFormatter {
     val sb = StringBuilder()
 
     sb.appendLine("========================================")
-    sb.appendLine((business?.name ?: "Gestor Comercial").uppercase())
+    sb.appendLine((business?.name ?: "Stock+").uppercase())
     business?.phone?.takeIf { it.isNotBlank() }?.let { sb.appendLine("Tel: $it") }
     business?.address?.takeIf { it.isNotBlank() }?.let { sb.appendLine(it) }
     sb.appendLine("========================================")

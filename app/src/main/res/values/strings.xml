@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Gestor Comercial</string>
+    <string name="app_name">Stock+</string>
     <string name="nav_home">Inicio</string>
     <string name="nav_history">Historial</string>
     <string name="nav_pos">Tienda</string>

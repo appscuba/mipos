@@ -182,7 +182,7 @@ fun MainAppShell(
     currentDestination?.hasRoute<AppDestination.UsersAudit>() == true -> "Usuarios y Auditoría"
     currentDestination?.hasRoute<AppDestination.Backups>() == true -> "Respaldos"
     currentDestination?.hasRoute<AppDestination.BusinessSettings>() == true -> "Configuración"
-    else -> "Gestor Comercial"
+    else -> "Stock+"
   }
 
   ModalNavigationDrawer(
@@ -197,7 +197,7 @@ fun MainAppShell(
         ) {
           Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
             Text(
-              text = appState.workspace.business?.name ?: "Gestor Comercial",
+              text = appState.workspace.business?.name ?: "Stock+",
               style = MaterialTheme.typography.titleLarge,
             )
             Text(

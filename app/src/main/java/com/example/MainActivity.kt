@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
             }
             appState.activeSession.isPinLocked -> {
               PinLockOverlay(
-                businessName = appState.workspace.business?.name ?: "Gestor Comercial",
+                businessName = appState.workspace.business?.name ?: "Stock+",
                 session = appState.activeSession,
                 onUnlock = mainVm::unlockWithPin,
               )

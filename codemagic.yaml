@@ -1,6 +1,6 @@
 workflows:
   android-debug-and-tests:
-    name: Gestor Comercial - Pruebas y APK Debug
+    name: Stock+ - Pruebas y APK Debug
     max_build_duration: 60
     environment:
       java: 21
@@ -58,7 +58,7 @@ workflows:
       - app/build/reports/tests/**/*
 
   android-release:
-    name: Gestor Comercial - APK/AAB Release
+    name: Stock+ - APK/AAB Release
     max_build_duration: 60
     environment:
       java: 21

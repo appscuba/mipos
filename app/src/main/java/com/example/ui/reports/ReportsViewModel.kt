@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 
 data class ReportsUiState(
   val businessId: Long = 0L,
-  val businessName: String = "Gestor Comercial",
+  val businessName: String = "Stock+",
   val selectedPreset: ReportPeriodPreset = ReportPeriodPreset.THIS_MONTH,
   val customRangeMillis: Pair<Long, Long>? = null,
   val report: BusinessReportSnapshot? = null,
@@ -48,7 +48,7 @@ class ReportsViewModel(
       ) { report, workspace ->
         ReportsUiState(
           businessId = bizId,
-          businessName = workspace.business?.name ?: "Gestor Comercial",
+          businessName = workspace.business?.name ?: "Stock+",
           selectedPreset = preset,
           customRangeMillis = custom,
           report = report,
