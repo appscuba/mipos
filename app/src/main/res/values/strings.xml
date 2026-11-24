@@ -2,7 +2,7 @@
     <string name="app_name">Gestor Comercial</string>
     <string name="nav_home">Inicio</string>
     <string name="nav_history">Historial</string>
-    <string name="nav_pos">Tienda/POS</string>
+    <string name="nav_pos">Tienda</string>
     <string name="nav_inventory">Inventario</string>
     <string name="nav_finance">Finanzas</string>
     <string name="drawer_purchases">Compras y Entradas</string>

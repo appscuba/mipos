@@ -28,7 +28,7 @@ enum class BottomNavTab(
 ) {
   HOME("Inicio", AppDestination.Home, "nav_tab_home"),
   HISTORY("Historial", AppDestination.History, "nav_tab_history"),
-  POS("Tienda/POS", AppDestination.Pos, "nav_tab_pos"),
+  POS("Tienda", AppDestination.Pos, "nav_tab_pos"),
   INVENTORY("Inventario", AppDestination.Inventory, "nav_tab_inventory"),
   FINANCE("Finanzas", AppDestination.Finance, "nav_tab_finance"),
 }

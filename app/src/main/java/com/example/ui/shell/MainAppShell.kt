@@ -61,6 +61,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -286,7 +287,16 @@ fun MainAppShell(
                       contentDescription = tab.label,
                     )
                   },
-                  label = { Text(tab.label, maxLines = 1) },
+                  label = {
+                    Text(
+                      text = tab.label,
+                      style = MaterialTheme.typography.labelSmall,
+                      maxLines = 1,
+                      softWrap = false,
+                      overflow = TextOverflow.Ellipsis,
+                    )
+                  },
+                  alwaysShowLabel = true,
                   modifier = Modifier.testTag(tab.testTag),
                 )
               }
@@ -315,7 +325,16 @@ fun MainAppShell(
                       contentDescription = tab.label,
                     )
                   },
-                  label = { Text(tab.label, maxLines = 1) },
+                  label = {
+                    Text(
+                      text = tab.label,
+                      style = MaterialTheme.typography.labelSmall,
+                      maxLines = 1,
+                      softWrap = false,
+                      overflow = TextOverflow.Ellipsis,
+                    )
+                  },
+                  alwaysShowLabel = true,
                   modifier = Modifier.testTag(tab.testTag),
                 )
               }
