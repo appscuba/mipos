@@ -402,10 +402,13 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("customer_name_input").performTextInput("Mario Díaz")
     composeTestRule.onNodeWithTag("customer_save_button").performClick()
 
+    // Espera a que el formulario se cierre y el cliente aparezca en la lista.
+    // Buscar solo el texto también encontraba el contenido del campo de edición,
+    // provocando un clic sobre el formulario en lugar de abrir el detalle.
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule.onAllNodesWithText("Mario Díaz").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithTag("customer_card_1").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithText("Mario Díaz").performClick()
+    composeTestRule.onNodeWithTag("customer_card_1").performClick()
 
     // Crear nueva deuda de 300
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
