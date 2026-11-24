@@ -25,13 +25,12 @@ class LicenseRepository(
     return "STP-" + hex.chunked(4).joinToString("-")
   }
 
-  suspend fun requestApproval(phone: String): LicenseValidationResult {
-    val normalizedPhone = phone.trim()
-    if (normalizedPhone.isBlank()) return LicenseValidationResult("invalid", message = "Introduce el teléfono registrado para esta licencia.")
-    preferences.saveLicensePhone(normalizedPhone)
-    val result = validator.validate(preferences.currentInstallationId(), normalizedPhone)
+  suspend fun requestApproval(licenseKey: String): LicenseValidationResult {
+    val normalizedKey = licenseKey.trim()
+    if (normalizedKey.isBlank()) return LicenseValidationResult("invalid", message = "Introduce la clave de licencia generada para tu compra.")
+    val result = validator.validate(preferences.currentInstallationId(), normalizedKey)
     if (result.status != "unavailable") {
-      preferences.saveLicenseResult("", result.status, result.expiresAt,
+      preferences.saveLicenseResult(normalizedKey, result.status, result.expiresAt,
         if (result.status == "active") System.currentTimeMillis() else 0L)
     }
     return result
@@ -39,12 +38,12 @@ class LicenseRepository(
 
   suspend fun revalidateIfDue() {
     val prefs = preferences.currentLicenseValues()
-    if (prefs.installationId.isBlank() || prefs.licensePhone.isBlank() || prefs.licenseStatus != "active") return
+    if (prefs.installationId.isBlank() || prefs.licenseKey.isBlank() || prefs.licenseStatus != "active") return
     val now = System.currentTimeMillis()
     if (prefs.lastLicenseValidation > 0L && now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
-    val result = validator.validate(prefs.installationId, prefs.licensePhone)
+    val result = validator.validate(prefs.installationId, prefs.licenseKey)
     if (result.status != "unavailable") {
-      preferences.saveLicenseResult("", result.status, result.expiresAt,
+      preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt,
         if (result.status == "active") now else 0L)
     }
   }
