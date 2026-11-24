@@ -23,12 +23,12 @@ class LicenseRepository(
   }
 
   private fun generateInstallationId(fingerprint: String): String {
-    // El ID es estable en el mismo dispositivo y sobrevive a reinstalaciones.
-    // El servidor conserva compatibilidad con los IDs aleatorios antiguos.
+    // Formato oficial del plugin: STP-XXXX-XXXX-XXXX (12 caracteres hexadecimales).
+    // Los IDs ya guardados no se modifican para no desvincular licencias existentes.
     val hex = if (fingerprint.length == 64 && fingerprint.all { it in "0123456789abcdefABCDEF" }) {
-      fingerprint.take(32).uppercase()
+      fingerprint.take(12).uppercase()
     } else {
-      ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { byte ->
+      ByteArray(6).also { SecureRandom().nextBytes(it) }.joinToString("") { byte ->
         (byte.toInt() and 0xff).toString(16).padStart(2, '0').uppercase()
       }
     }
