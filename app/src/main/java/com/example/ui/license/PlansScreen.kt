@@ -128,10 +128,10 @@ fun PlansScreen(
             }
             Text(plan.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              Text("${plan.monthlyPrice} USD", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-              Text("USD / mes", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 5.dp))
+              Text("${plan.monthlyPrice} CUP", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+              Text("CUP / mes", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 5.dp))
             }
-            Text("Anual: $annualTotal USD (20% de descuento)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text("Anual: $annualTotal CUP (20% de descuento)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             plan.features.forEach { feature ->
               Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 androidx.compose.material3.Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -140,7 +140,7 @@ fun PlansScreen(
             }
             Button(
               onClick = {
-                val message = Uri.encode("Hola, deseo información y activar el plan ${plan.name} de Stock+ (${plan.monthlyPrice} USD mensual o $annualTotal USD anual).")
+                val message = Uri.encode("Hola, deseo información y activar el plan ${plan.name} de Stock+ (${plan.monthlyPrice} CUP mensual o $annualTotal CUP anual).")
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/5353274074?text=$message")))
               },
               modifier = Modifier.fillMaxWidth(),
