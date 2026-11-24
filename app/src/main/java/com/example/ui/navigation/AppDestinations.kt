@@ -20,6 +20,7 @@ sealed interface AppDestination {
   @Serializable data object Backups : AppDestination
   @Serializable data object BusinessSettings : AppDestination
   @Serializable data object LicenseActivation : AppDestination
+  @Serializable data object Plans : AppDestination
 }
 
 enum class BottomNavTab(
