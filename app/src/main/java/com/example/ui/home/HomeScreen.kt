@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Settings
@@ -158,13 +157,6 @@ fun HomeScreen(
                 label = { Text("1 lb = $gramsPerPound g") },
                 leadingIcon = {
                   Icon(Icons.Filled.Scale, contentDescription = null, modifier = Modifier.size(16.dp))
-                },
-              )
-              AssistChip(
-                onClick = {},
-                label = { Text("Offline SQLite") },
-                leadingIcon = {
-                  Icon(Icons.Filled.OfflinePin, contentDescription = null, modifier = Modifier.size(16.dp))
                 },
               )
             }
