@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
+import com.example.data.license.LicenseRepository
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanStatus
+import kotlinx.coroutines.flow.first
 import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.local.db.entity.ExchangeRateEntity
 import com.example.data.repository.BusinessRepository
@@ -38,6 +42,7 @@ class CustomersViewModel(
   private val financeRepository: FinanceRepository,
   private val businessRepository: BusinessRepository,
   private val currentUserIdProvider: () -> Long? = { null },
+  private val licenseRepository: LicenseRepository? = null,
 ) : ViewModel() {
 
   private val searchQuery = MutableStateFlow("")
@@ -140,6 +145,13 @@ class CustomersViewModel(
     viewModelScope.launch {
       isSaving.value = true
       try {
+        val license = licenseRepository?.snapshot?.first()
+        if (customerId == null && license?.plan() == PlanStatus.FREE &&
+          uiState.value.customers.size >= PlanLimits.MAX_CUSTOMERS
+        ) {
+          feedbackMessage.value = "Plan gratuito: llegaste a los 10 clientes. Activa una licencia para añadir más."
+          return@launch
+        }
         financeRepository.saveCustomer(
           businessId = bizId,
           customerId = customerId,
@@ -320,9 +332,10 @@ class CustomersViewModel(
     private val financeRepository: FinanceRepository,
     private val businessRepository: BusinessRepository,
     private val currentUserIdProvider: () -> Long? = { null },
+    private val licenseRepository: LicenseRepository? = null,
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      CustomersViewModel(businessIdFlow, financeRepository, businessRepository, currentUserIdProvider) as T
+      CustomersViewModel(businessIdFlow, financeRepository, businessRepository, currentUserIdProvider, licenseRepository) as T
   }
 }
