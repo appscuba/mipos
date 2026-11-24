@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.MainViewModel
 import com.example.ui.security.PinLockOverlay
@@ -25,6 +27,10 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     val container = (application as GestorComercialApp).container
+    lifecycleScope.launch {
+      container.licenseRepository.initialize()
+      container.licenseRepository.revalidateIfDue()
+    }
 
     setContent {
       val mainVm: MainViewModel = viewModel(
