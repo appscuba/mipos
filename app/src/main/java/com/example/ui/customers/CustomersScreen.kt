@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -504,6 +505,7 @@ private fun CustomerDetailDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
+        .fillMaxHeight(0.92f)
         .padding(14.dp)
         .widthIn(max = 680.dp)
         .heightIn(max = 860.dp),
@@ -511,7 +513,7 @@ private fun CustomerDetailDialog(
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = 6.dp,
     ) {
-      Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+      Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
@@ -533,7 +535,7 @@ private fun CustomerDetailDialog(
 
         Column(
           modifier = Modifier
-            .weight(1f, fill = false)
+            .weight(1f)
             .verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
