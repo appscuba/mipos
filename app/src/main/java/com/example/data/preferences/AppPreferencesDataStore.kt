@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.example.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 data class UserPreferences(
@@ -19,6 +20,12 @@ data class UserPreferences(
   val activeBusinessId: Long = 0L,
   val activeUserId: Long = 0L,
   val lastBackupTimestamp: Long = 0L,
+  val installationId: String = "",
+  val licensePhone: String = "",
+  val licenseStatus: String = "",
+  val licenseExpiresAt: Long = 0L,
+  val lastLicenseValidation: Long = 0L,
+  val firstLaunchAt: Long = 0L,
 )
 
 class AppPreferencesDataStore(context: Context) {
@@ -32,6 +39,12 @@ class AppPreferencesDataStore(context: Context) {
     val ACTIVE_BUSINESS_ID = longPreferencesKey("active_business_id")
     val ACTIVE_USER_ID = longPreferencesKey("active_user_id")
     val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
+    val INSTALLATION_ID = stringPreferencesKey("license_installation_id")
+    val LICENSE_PHONE = stringPreferencesKey("license_phone")
+    val LICENSE_STATUS = stringPreferencesKey("license_status")
+    val LICENSE_EXPIRES_AT = longPreferencesKey("license_expires_at")
+    val LAST_LICENSE_VALIDATION = longPreferencesKey("last_license_validation")
+    val FIRST_LAUNCH_AT = longPreferencesKey("first_launch_at")
   }
 
   val preferencesFlow: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -43,13 +56,17 @@ class AppPreferencesDataStore(context: Context) {
       activeBusinessId = prefs[Keys.ACTIVE_BUSINESS_ID] ?: 0L,
       activeUserId = prefs[Keys.ACTIVE_USER_ID] ?: 0L,
       lastBackupTimestamp = prefs[Keys.LAST_BACKUP_TIMESTAMP] ?: 0L,
+      installationId = prefs[Keys.INSTALLATION_ID] ?: "",
+      licensePhone = prefs[Keys.LICENSE_PHONE] ?: "",
+      licenseStatus = prefs[Keys.LICENSE_STATUS] ?: "",
+      licenseExpiresAt = prefs[Keys.LICENSE_EXPIRES_AT] ?: 0L,
+      lastLicenseValidation = prefs[Keys.LAST_LICENSE_VALIDATION] ?: 0L,
+      firstLaunchAt = prefs[Keys.FIRST_LAUNCH_AT] ?: 0L,
     )
   }
 
   suspend fun setThemeMode(mode: ThemeMode) {
-    dataStore.edit { prefs ->
-      prefs[Keys.THEME_MODE] = mode.name
-    }
+    dataStore.edit { prefs -> prefs[Keys.THEME_MODE] = mode.name }
   }
 
   suspend fun markOnboardingCompleted(businessId: Long, userId: Long) {
@@ -61,16 +78,42 @@ class AppPreferencesDataStore(context: Context) {
   }
 
   suspend fun setActiveUser(userId: Long) {
-    dataStore.edit { prefs ->
-      prefs[Keys.ACTIVE_USER_ID] = userId
-    }
+    dataStore.edit { prefs -> prefs[Keys.ACTIVE_USER_ID] = userId }
   }
 
   suspend fun updateLastBackupTimestamp(timestamp: Long) {
+    dataStore.edit { prefs -> prefs[Keys.LAST_BACKUP_TIMESTAMP] = timestamp }
+  }
+
+  suspend fun ensureLicenseIdentity(installationId: String, firstLaunchAt: Long) {
     dataStore.edit { prefs ->
-      prefs[Keys.LAST_BACKUP_TIMESTAMP] = timestamp
+      if (prefs[Keys.INSTALLATION_ID].isNullOrBlank()) prefs[Keys.INSTALLATION_ID] = installationId
+      if ((prefs[Keys.FIRST_LAUNCH_AT] ?: 0L) <= 0L) prefs[Keys.FIRST_LAUNCH_AT] = firstLaunchAt
     }
   }
+
+  suspend fun currentInstallationId(): String =
+    dataStore.data.map { it[Keys.INSTALLATION_ID] ?: "" }.first()
+
+  suspend fun saveLicenseResult(phone: String, status: String, expiresAt: Long, validatedAt: Long) {
+    dataStore.edit { prefs ->
+      prefs[Keys.LICENSE_PHONE] = phone
+      prefs[Keys.LICENSE_STATUS] = status
+      prefs[Keys.LICENSE_EXPIRES_AT] = expiresAt
+      prefs[Keys.LAST_LICENSE_VALIDATION] = validatedAt
+    }
+  }
+
+  suspend fun currentLicenseValues(): UserPreferences = dataStore.data.map { prefs ->
+    UserPreferences(
+      installationId = prefs[Keys.INSTALLATION_ID] ?: "",
+      licensePhone = prefs[Keys.LICENSE_PHONE] ?: "",
+      licenseStatus = prefs[Keys.LICENSE_STATUS] ?: "",
+      licenseExpiresAt = prefs[Keys.LICENSE_EXPIRES_AT] ?: 0L,
+      lastLicenseValidation = prefs[Keys.LAST_LICENSE_VALIDATION] ?: 0L,
+      firstLaunchAt = prefs[Keys.FIRST_LAUNCH_AT] ?: 0L,
+    )
+  }.first()
 
   suspend fun resetAllWorkspaceData() {
     dataStore.edit { prefs ->
@@ -78,6 +121,7 @@ class AppPreferencesDataStore(context: Context) {
       prefs[Keys.ACTIVE_BUSINESS_ID] = 0L
       prefs[Keys.ACTIVE_USER_ID] = 0L
       prefs[Keys.LAST_BACKUP_TIMESTAMP] = 0L
+      // No borrar INSTALLATION_ID, licencia ni FIRST_LAUNCH_AT.
     }
   }
 }
