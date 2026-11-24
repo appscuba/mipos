@@ -10,7 +10,7 @@ class LicenseRepository(
   private val validator: LicenseValidator = LicenseValidator(),
 ) {
   val snapshot: Flow<LicenseSnapshot> = preferences.preferencesFlow.map { prefs ->
-    LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus,
+    LicenseSnapshot(prefs.installationId, prefs.licenseKey, prefs.licenseStatus,
       prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt)
   }
 
@@ -35,11 +35,11 @@ class LicenseRepository(
     return "STP-" + hex.chunked(4).joinToString("-")
   }
 
-  suspend fun activate(phone: String): LicenseValidationResult {
+  suspend fun activate(licenseKey: String): LicenseValidationResult {
     val id = preferences.currentInstallationId()
-    val result = validator.validate(id, phone)
+    val result = validator.validate(id, licenseKey)
     if (result.status != "unavailable") {
-      preferences.saveLicenseResult(phone, result.status, result.expiresAt,
+      preferences.saveLicenseResult(licenseKey, result.status, result.expiresAt,
         if (result.status == "active") System.currentTimeMillis() else 0L)
     }
     return result
@@ -47,13 +47,13 @@ class LicenseRepository(
 
   suspend fun revalidateIfDue() {
     val prefs = preferences.currentLicenseValues()
-    if (prefs.installationId.isBlank() || prefs.licensePhone.isBlank() || prefs.licenseStatus != "active") return
+    if (prefs.installationId.isBlank() || prefs.licenseKey.isBlank() || prefs.licenseStatus != "active") return
     val now = System.currentTimeMillis()
     if (prefs.lastLicenseValidation > 0L &&
       now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
-    val result = validator.validate(prefs.installationId, prefs.licensePhone)
+    val result = validator.validate(prefs.installationId, prefs.licenseKey)
     if (result.status == "active") {
-      preferences.saveLicenseResult(prefs.licensePhone, result.status, result.expiresAt, now)
+      preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt, now)
     } else if (result.status == "revoked" || result.status == "expired" || result.status == "invalid") {
       preferences.saveLicenseResult(prefs.licensePhone, result.status, result.expiresAt, 0L)
     }
