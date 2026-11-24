@@ -31,8 +31,8 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -532,7 +532,19 @@ private fun ExpenseFormDialog(
   var amountText by remember { mutableStateOf("") }
   var paymentMethod by remember { mutableStateOf("CASH") }
   var paidFromDrawer by remember { mutableStateOf(hasOpenCashSession) }
+  var drawerToggledByUser by remember { mutableStateOf(false) }
   var error by remember { mutableStateOf<String?>(null) }
+
+  LaunchedEffect(categories) {
+    if (selectedCatId <= 0L && categories.isNotEmpty()) {
+      selectedCatId = categories.first().id
+    }
+  }
+  LaunchedEffect(hasOpenCashSession) {
+    if (!drawerToggledByUser && paymentMethod == "CASH") {
+      paidFromDrawer = hasOpenCashSession
+    }
+  }
 
   val parsedRate = MoneyMath.parseDecimalOrNull(rateText)?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ONE
   val parsedAmount = MoneyMath.parseMoneyOrNull(amountText) ?: MoneyMath.ZERO
@@ -633,7 +645,10 @@ private fun ExpenseFormDialog(
           }
           Switch(
             checked = paidFromDrawer,
-            onCheckedChange = { paidFromDrawer = it },
+            onCheckedChange = {
+              drawerToggledByUser = true
+              paidFromDrawer = it
+            },
             enabled = hasOpenCashSession,
             modifier = Modifier.testTag("expense_from_drawer_switch"),
           )
@@ -802,7 +817,7 @@ private fun CashAdjustmentDialog(
               label = { Text(t.label) },
               leadingIcon = {
                 Icon(
-                  if (t.isInflow) Icons.Filled.TrendingUp else Icons.Filled.TrendingDown,
+                  if (t.isInflow) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                   contentDescription = null,
                   modifier = Modifier.size(16.dp),
                 )

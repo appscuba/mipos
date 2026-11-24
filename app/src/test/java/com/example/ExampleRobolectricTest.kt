@@ -347,8 +347,10 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("expense_save_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule.onAllNodesWithText("Electricidad").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithText("150.00 CUP").fetchSemanticsNodes().isNotEmpty()
     }
+    composeTestRule.onNodeWithTag("finance_list").performScrollToNode(hasText("Electricidad"))
+    composeTestRule.onNodeWithText("Electricidad").assertIsDisplayed()
 
     // 3. Verificar en Reportes y Usuarios/Auditoría
     composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
