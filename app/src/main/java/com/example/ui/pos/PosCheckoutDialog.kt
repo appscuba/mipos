@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,8 +20,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Remove
@@ -56,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -70,8 +75,8 @@ private enum class CheckoutPaymentMode(val label: String) {
   CASH("Efectivo"),
   TRANSFER("Transferencia"),
   USD("USD"),
-  MIXED("Mixto / Parcial"),
-  CREDIT("Crédito (Fiado)"),
+  MIXED("Mixto"),
+  CREDIT("Crédito"),
 }
 
 private val MIXED_METHOD_OPTIONS = listOf(
@@ -108,7 +113,7 @@ fun PosCheckoutDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(14.dp)
+        .padding(horizontal = 12.dp, vertical = 16.dp)
         .widthIn(max = 720.dp)
         .heightIn(max = 860.dp),
       shape = MaterialTheme.shapes.large,
@@ -121,7 +126,7 @@ fun PosCheckoutDialog(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          Text("Carrito y Cobro (${state.cartItems.size})", style = MaterialTheme.typography.titleLarge)
+          Text("Cobrar (${state.cartItems.size})", style = MaterialTheme.typography.titleLarge)
           IconButton(
             onClick = onDismiss,
             modifier = Modifier.minimumInteractiveComponentSize(),
@@ -129,7 +134,7 @@ fun PosCheckoutDialog(
             Icon(Icons.Filled.Close, contentDescription = "Cerrar carrito")
           }
         }
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
 
         PosCartCheckoutContent(
           state = state,
@@ -174,6 +179,7 @@ fun PosCartCheckoutContent(
       if (state.discountBase > BigDecimal.ZERO) MoneyMath.formatQuantity(state.discountBase) else "",
     )
   }
+  var showExtras by remember { mutableStateOf(state.discountBase > BigDecimal.ZERO) }
   var customerMenuExpanded by remember { mutableStateOf(false) }
   var showQuickCustomerDialog by remember { mutableStateOf(false) }
 
@@ -195,7 +201,6 @@ fun PosCartCheckoutContent(
   var notes by remember { mutableStateOf("") }
   var errorText by remember { mutableStateOf<String?>(null) }
 
-  // Live payment calculation across all modes
   val paymentCalc: PaymentComputationResult = when (paymentMode) {
     CheckoutPaymentMode.CASH -> {
       val tendered = MoneyMath.parseMoneyOrNull(cashTenderedText) ?: MoneyMath.ZERO
@@ -313,479 +318,485 @@ fun PosCartCheckoutContent(
   val pendingDebtPreview = MoneyMath.subtract(state.totalBase, paidBasePreview).max(MoneyMath.ZERO)
   val selectedCustomer = state.customers.firstOrNull { it.id == state.selectedCustomerId }
 
-  Column(
-    modifier = modifier.verticalScroll(rememberScrollState()),
-    verticalArrangement = Arrangement.spacedBy(10.dp),
-  ) {
-    if (state.cartItems.isEmpty()) {
-      Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
-        shape = MaterialTheme.shapes.medium,
+  if (state.cartItems.isEmpty()) {
+    Card(
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+      shape = MaterialTheme.shapes.medium,
+      modifier = modifier,
+    ) {
+      Text(
+        text = "El carrito está vacío. Usa +1 en cualquier producto o tócalo para elegir peso o presentación.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(16.dp),
+      )
+    }
+  } else {
+    Column(modifier = modifier) {
+      // Cuerpo desplazable (cliente, pago, productos y opcionales)
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .weight(1f, fill = false)
+          .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        Text(
-          text = "El carrito está vacío. Usa el botón + en cualquier producto o tócalo para elegir peso o presentación.",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.padding(16.dp),
-        )
-      }
-    } else {
-      // 1. Cliente (siempre visible arriba para vender rápido)
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        ExposedDropdownMenuBox(
-          expanded = customerMenuExpanded,
-          onExpandedChange = { customerMenuExpanded = !customerMenuExpanded },
-          modifier = Modifier.weight(1f),
+        // 1. Cliente (1 fila compacta)
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
-          val currentCustomerLabel = selectedCustomer?.let {
-            if (it.debtBalanceBase > BigDecimal.ZERO) "${it.name} (Debe ${MoneyMath.format(it.debtBalanceBase, state.primaryCurrency)})"
-            else it.name
-          } ?: "Cliente al contado"
-          OutlinedTextField(
-            value = currentCustomerLabel,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text("Cliente") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = customerMenuExpanded) },
-            modifier = Modifier
-              .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-              .fillMaxWidth()
-              .testTag("pos_customer_dropdown"),
-          )
-          ExposedDropdownMenu(
+          ExposedDropdownMenuBox(
             expanded = customerMenuExpanded,
-            onDismissRequest = { customerMenuExpanded = false },
+            onExpandedChange = { customerMenuExpanded = !customerMenuExpanded },
+            modifier = Modifier.weight(1f),
           ) {
-            DropdownMenuItem(
-              text = { Text("Cliente al contado") },
-              onClick = {
-                onSelectCustomer(null)
-                customerMenuExpanded = false
-              },
+            val currentCustomerLabel = selectedCustomer?.let {
+              if (it.debtBalanceBase > BigDecimal.ZERO) "${it.name} (Debe ${MoneyMath.format(it.debtBalanceBase, state.primaryCurrency)})"
+              else it.name
+            } ?: "Cliente al contado"
+            OutlinedTextField(
+              value = currentCustomerLabel,
+              onValueChange = {},
+              readOnly = true,
+              singleLine = true,
+              label = { Text("Cliente") },
+              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = customerMenuExpanded) },
+              modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
+                .testTag("pos_customer_dropdown"),
             )
-            state.customers.forEach { customer ->
+            ExposedDropdownMenu(
+              expanded = customerMenuExpanded,
+              onDismissRequest = { customerMenuExpanded = false },
+            ) {
               DropdownMenuItem(
-                text = { Text(customer.name) },
+                text = { Text("Cliente al contado") },
                 onClick = {
-                  onSelectCustomer(customer.id)
+                  onSelectCustomer(null)
                   customerMenuExpanded = false
                 },
               )
+              state.customers.forEach { customer ->
+                DropdownMenuItem(
+                  text = { Text(customer.name) },
+                  onClick = {
+                    onSelectCustomer(customer.id)
+                    customerMenuExpanded = false
+                  },
+                )
+              }
             }
           }
-        }
 
-        OutlinedButton(
-          onClick = { showQuickCustomerDialog = true },
-          shape = RoundedCornerShape(10.dp),
-          modifier = Modifier.height(56.dp).testTag("pos_quick_customer_btn"),
-        ) {
-          Icon(Icons.Filled.PersonAdd, contentDescription = "Nuevo cliente rápido", modifier = Modifier.size(18.dp))
-        }
-      }
-
-      // 2. Forma de pago (compacta y directa)
-      Text("Forma de Pago", style = MaterialTheme.typography.titleSmall)
-      FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        CheckoutPaymentMode.entries.forEach { mode ->
-          FilterChip(
-            selected = paymentMode == mode,
-            onClick = {
-              paymentMode = mode
-              errorText = null
-            },
-            label = { Text(mode.label) },
-            modifier = Modifier.testTag("pos_pay_mode_${mode.name}"),
-          )
-        }
-      }
-
-      if (paymentMode == CheckoutPaymentMode.CREDIT && state.selectedCustomerId == null && state.customers.isNotEmpty()) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          Text(
-            text = "Elige rápido a quién fiar:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-          )
-          FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            state.customers.take(5).forEach { c ->
-              FilterChip(
-                selected = false,
-                onClick = { onSelectCustomer(c.id) },
-                label = { Text(c.name) },
-              )
-            }
+          OutlinedButton(
+            onClick = { showQuickCustomerDialog = true },
+            shape = RoundedCornerShape(10.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier.height(54.dp).testTag("pos_quick_customer_btn"),
+          ) {
+            Icon(Icons.Filled.PersonAdd, contentDescription = "Nuevo cliente rápido", modifier = Modifier.size(18.dp))
           }
         }
-      }
 
-      if (paymentMode == CheckoutPaymentMode.CASH || paymentMode == CheckoutPaymentMode.TRANSFER || paymentMode == CheckoutPaymentMode.USD) {
-        val isUsdMode = paymentMode == CheckoutPaymentMode.USD
-        val activeCurrency = if (isUsdMode) "USD" else state.primaryCurrency
-        val currentTenderedText = when (paymentMode) {
-          CheckoutPaymentMode.CASH -> cashTenderedText
-          CheckoutPaymentMode.TRANSFER -> transferTenderedText
-          CheckoutPaymentMode.USD -> usdTenderedText
-          else -> ""
-        }
-        val onTenderedUpdate: (String) -> Unit = { newValue ->
-          when (paymentMode) {
-            CheckoutPaymentMode.CASH -> cashTenderedText = newValue
-            CheckoutPaymentMode.TRANSFER -> transferTenderedText = newValue
-            CheckoutPaymentMode.USD -> usdTenderedText = newValue
-            else -> {}
-          }
-          errorText = null
-        }
-
-        val fieldLabel = when (paymentMode) {
-          CheckoutPaymentMode.CASH -> "¿Con cuánto paga? — Efectivo recibido (${state.primaryCurrency})"
-          CheckoutPaymentMode.TRANSFER -> "¿Cuánto transfirió / paga? — Transferencia (${state.primaryCurrency})"
-          CheckoutPaymentMode.USD -> "¿Cuánto entrega en USD? (Tasa: ${MoneyMath.formatQuantity(usdRate)} ${state.primaryCurrency})"
-          else -> ""
-        }
-
-        OutlinedTextField(
-          value = currentTenderedText,
-          onValueChange = onTenderedUpdate,
-          label = { Text(fieldLabel) },
-          singleLine = true,
-          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-          modifier = Modifier.fillMaxWidth().testTag("pos_cash_tendered_input"),
-        )
-
-        // Quick denomination chips (100, 200, 500, 1000, Exacto)
-        val quickBills = if (isUsdMode) USD_QUICK_BILLS else BASE_QUICK_BILLS
+        // 2. Forma de Pago
         FlowRow(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-          SuggestionChip(
-            onClick = {
-              val exact = if (isUsdMode) exactUsdAmount else state.totalBase
-              onTenderedUpdate(MoneyMath.formatQuantity(exact))
-            },
-            label = { Text("Exacto") },
-            modifier = Modifier.testTag("pos_tendered_chip_exact"),
+          CheckoutPaymentMode.entries.forEach { mode ->
+            FilterChip(
+              selected = paymentMode == mode,
+              onClick = {
+                paymentMode = mode
+                errorText = null
+              },
+              label = { Text(mode.label, maxLines = 1, softWrap = false) },
+              modifier = Modifier.testTag("pos_pay_mode_${mode.name}"),
+            )
+          }
+        }
+
+        if (paymentMode == CheckoutPaymentMode.CREDIT && state.selectedCustomerId == null && state.customers.isNotEmpty()) {
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            state.customers.take(5).forEach { c ->
+              FilterChip(
+                selected = false,
+                onClick = { onSelectCustomer(c.id) },
+                label = { Text("Fiar: ${c.name}", maxLines = 1, softWrap = false) },
+              )
+            }
+          }
+        }
+
+        // 3. Monto recibido + denominaciones rápidas
+        if (paymentMode == CheckoutPaymentMode.CASH || paymentMode == CheckoutPaymentMode.TRANSFER || paymentMode == CheckoutPaymentMode.USD) {
+          val isUsdMode = paymentMode == CheckoutPaymentMode.USD
+          val currentTenderedText = when (paymentMode) {
+            CheckoutPaymentMode.CASH -> cashTenderedText
+            CheckoutPaymentMode.TRANSFER -> transferTenderedText
+            CheckoutPaymentMode.USD -> usdTenderedText
+            else -> ""
+          }
+          val onTenderedUpdate: (String) -> Unit = { newValue ->
+            when (paymentMode) {
+              CheckoutPaymentMode.CASH -> cashTenderedText = newValue
+              CheckoutPaymentMode.TRANSFER -> transferTenderedText = newValue
+              CheckoutPaymentMode.USD -> usdTenderedText = newValue
+              else -> {}
+            }
+            errorText = null
+          }
+
+          val fieldLabel = when (paymentMode) {
+            CheckoutPaymentMode.CASH -> "¿Con cuánto paga? (${state.primaryCurrency})"
+            CheckoutPaymentMode.TRANSFER -> "Transferencia recibida (${state.primaryCurrency})"
+            CheckoutPaymentMode.USD -> "Pago en USD (1 USD = ${MoneyMath.formatQuantity(usdRate)})"
+            else -> ""
+          }
+
+          OutlinedTextField(
+            value = currentTenderedText,
+            onValueChange = onTenderedUpdate,
+            label = { Text(fieldLabel) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth().testTag("pos_cash_tendered_input"),
           )
-          quickBills.forEach { bill ->
+
+          val quickBills = if (isUsdMode) USD_QUICK_BILLS else BASE_QUICK_BILLS
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
             SuggestionChip(
-              onClick = { onTenderedUpdate(bill) },
-              label = { Text("$bill $activeCurrency") },
-              modifier = Modifier.testTag("pos_tendered_chip_$bill"),
+              onClick = {
+                val exact = if (isUsdMode) exactUsdAmount else state.totalBase
+                onTenderedUpdate(MoneyMath.formatQuantity(exact))
+              },
+              label = { Text("Exacto") },
+              modifier = Modifier.testTag("pos_tendered_chip_exact"),
+            )
+            quickBills.forEach { bill ->
+              SuggestionChip(
+                onClick = { onTenderedUpdate(bill) },
+                label = { Text(if (isUsdMode) "$$bill" else bill) },
+                modifier = Modifier.testTag("pos_tendered_chip_$bill"),
+              )
+            }
+          }
+        }
+
+        if (paymentMode == CheckoutPaymentMode.MIXED) {
+          Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+            shape = MaterialTheme.shapes.small,
+          ) {
+            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                MIXED_METHOD_OPTIONS.forEach { (code, label) ->
+                  FilterChip(
+                    selected = mixedMethod == code,
+                    onClick = {
+                      mixedMethod = code
+                      if (code == "USD") mixedCurrency = "USD" else if (mixedCurrency == "USD" && code == "CASH") mixedCurrency = state.primaryCurrency
+                    },
+                    label = { Text(label) },
+                  )
+                }
+              }
+              FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val rates = state.exchangeRates.ifEmpty {
+                  listOf(
+                    ExchangeRateEntity(
+                      businessId = state.businessId,
+                      currencyCode = state.primaryCurrency,
+                      currencyName = state.primaryCurrency,
+                      symbol = "$",
+                      rateToBase = BigDecimal.ONE,
+                      isBaseCurrency = true,
+                    ),
+                  )
+                }
+                rates.forEach { r ->
+                  FilterChip(
+                    selected = mixedCurrency == r.currencyCode,
+                    onClick = { mixedCurrency = r.currencyCode },
+                    label = { Text("${r.currencyCode} (${MoneyMath.formatQuantity(r.rateToBase)})") },
+                  )
+                }
+              }
+              Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                  value = mixedAmountText,
+                  onValueChange = { mixedAmountText = it },
+                  label = { Text("Monto ($mixedCurrency)") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(1f).testTag("pos_mixed_amount_input"),
+                )
+                Button(
+                  onClick = {
+                    val amt = MoneyMath.parseMoneyOrNull(mixedAmountText)
+                    if (amt != null && amt > BigDecimal.ZERO) {
+                      val rate = state.exchangeRates.firstOrNull { it.currencyCode == mixedCurrency }?.rateToBase ?: BigDecimal.ONE
+                      errorText = null
+                      mixedPayments.add(
+                        SalePaymentInput(
+                          paymentMethod = mixedMethod,
+                          currencyCode = mixedCurrency,
+                          originalAmount = amt,
+                          exchangeRateToBase = rate,
+                          isPhysicalCash = mixedMethod == "CASH",
+                        ),
+                      )
+                      mixedAmountText = ""
+                    }
+                  },
+                  shape = RoundedCornerShape(10.dp),
+                  modifier = Modifier.height(52.dp).testTag("pos_mixed_add_button"),
+                ) {
+                  Text("Agregar")
+                }
+              }
+              mixedPayments.forEachIndexed { idx, p ->
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  val baseVal = MoneyMath.convertToBase(p.originalAmount, p.exchangeRateToBase)
+                  Text(
+                    text = "${p.paymentMethod}: ${MoneyMath.format(p.originalAmount, p.currencyCode)} (${MoneyMath.format(baseVal, state.primaryCurrency)})",
+                    style = MaterialTheme.typography.bodySmall,
+                  )
+                  IconButton(
+                    onClick = { mixedPayments.removeAt(idx) },
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                  ) {
+                    Icon(Icons.Filled.DeleteOutline, contentDescription = "Quitar pago", tint = MaterialTheme.colorScheme.error)
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // 4. Productos en el carrito (compactos)
+        Text("Productos (${state.cartItems.size})", style = MaterialTheme.typography.labelLarge)
+        state.cartItems.forEach { line ->
+          Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+            shape = MaterialTheme.shapes.small,
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  line.productWithDetails.product.name,
+                  style = MaterialTheme.typography.titleSmall,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                  text = "${MoneyMath.formatQuantity(line.enteredQuantity)} ${line.unitLabel} • ${MoneyMath.format(line.lineTotalBase, state.primaryCurrency)}",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.primary,
+                )
+              }
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                val step = if (line.unitLabel == "lb") BigDecimal("0.25") else BigDecimal.ONE
+                IconButton(
+                  onClick = { onUpdateQty(line.lineId, line.enteredQuantity.subtract(step)) },
+                  modifier = Modifier.size(40.dp),
+                ) {
+                  Icon(Icons.Filled.Remove, contentDescription = "Disminuir cantidad", modifier = Modifier.size(18.dp))
+                }
+                IconButton(
+                  onClick = { onUpdateQty(line.lineId, line.enteredQuantity.add(step)) },
+                  modifier = Modifier.size(40.dp),
+                ) {
+                  Icon(Icons.Filled.Add, contentDescription = "Aumentar cantidad", modifier = Modifier.size(18.dp))
+                }
+                IconButton(
+                  onClick = { onRemoveItem(line.lineId) },
+                  modifier = Modifier.size(40.dp),
+                ) {
+                  Icon(
+                    Icons.Filled.DeleteOutline,
+                    contentDescription = "Quitar línea",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                  )
+                }
+              }
+            }
+          }
+        }
+
+        // 5. Descuento y Nota opcionales (plegables para no quitar espacio)
+        TextButton(
+          onClick = { showExtras = !showExtras },
+          contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+        ) {
+          Icon(
+            imageVector = if (showExtras) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+          )
+          Spacer(Modifier.width(4.dp))
+          Text(
+            if (showExtras) "Ocultar descuento / nota" else "Agregar descuento o nota (opcional)",
+            style = MaterialTheme.typography.labelMedium,
+          )
+        }
+
+        if (showExtras) {
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+              value = discountText,
+              onValueChange = { text ->
+                discountText = text
+                val parsed = MoneyMath.parseMoneyOrNull(text) ?: MoneyMath.ZERO
+                onDiscountChange(parsed.max(MoneyMath.ZERO))
+              },
+              label = { Text("Descuento") },
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+              modifier = Modifier.weight(0.45f).testTag("pos_discount_input"),
+            )
+            OutlinedTextField(
+              value = notes,
+              onValueChange = { notes = it },
+              label = { Text("Nota (opcional)") },
+              singleLine = true,
+              modifier = Modifier.weight(0.55f),
             )
           }
         }
       }
 
-      if (paymentMode == CheckoutPaymentMode.MIXED) {
-        Card(
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-          shape = MaterialTheme.shapes.small,
-        ) {
-          Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              MIXED_METHOD_OPTIONS.forEach { (code, label) ->
-                FilterChip(
-                  selected = mixedMethod == code,
-                  onClick = {
-                    mixedMethod = code
-                    if (code == "USD") mixedCurrency = "USD" else if (mixedCurrency == "USD" && code == "CASH") mixedCurrency = state.primaryCurrency
-                  },
-                  label = { Text(label) },
-                )
-              }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              val rates = state.exchangeRates.ifEmpty {
-                listOf(
-                  ExchangeRateEntity(
-                    businessId = state.businessId,
-                    currencyCode = state.primaryCurrency,
-                    currencyName = state.primaryCurrency,
-                    symbol = "$",
-                    rateToBase = BigDecimal.ONE,
-                    isBaseCurrency = true,
-                  ),
-                )
-              }
-              rates.forEach { r ->
-                FilterChip(
-                  selected = mixedCurrency == r.currencyCode,
-                  onClick = { mixedCurrency = r.currencyCode },
-                  label = { Text("${r.currencyCode} (${MoneyMath.formatQuantity(r.rateToBase)})") },
-                )
-              }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-              OutlinedTextField(
-                value = mixedAmountText,
-                onValueChange = { mixedAmountText = it },
-                label = { Text("Monto ($mixedCurrency)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f).testTag("pos_mixed_amount_input"),
-              )
-              Button(
-                onClick = {
-                  val amt = MoneyMath.parseMoneyOrNull(mixedAmountText)
-                  if (amt != null && amt > BigDecimal.ZERO) {
-                    val rate = state.exchangeRates.firstOrNull { it.currencyCode == mixedCurrency }?.rateToBase ?: BigDecimal.ONE
-                    errorText = null
-                    mixedPayments.add(
-                      SalePaymentInput(
-                        paymentMethod = mixedMethod,
-                        currencyCode = mixedCurrency,
-                        originalAmount = amt,
-                        exchangeRateToBase = rate,
-                        isPhysicalCash = mixedMethod == "CASH",
-                      ),
-                    )
-                    mixedAmountText = ""
-                  }
-                },
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(52.dp).testTag("pos_mixed_add_button"),
-              ) {
-                Text("Agregar")
-              }
-            }
-            mixedPayments.forEachIndexed { idx, p ->
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-              ) {
-                val baseVal = MoneyMath.convertToBase(p.originalAmount, p.exchangeRateToBase)
-                Text(
-                  text = "${p.paymentMethod}: ${MoneyMath.format(p.originalAmount, p.currencyCode)} (${MoneyMath.format(baseVal, state.primaryCurrency)})",
-                  style = MaterialTheme.typography.bodySmall,
-                )
-                IconButton(
-                  onClick = { mixedPayments.removeAt(idx) },
-                  modifier = Modifier.minimumInteractiveComponentSize(),
-                ) {
-                  Icon(Icons.Filled.DeleteOutline, contentDescription = "Quitar pago", tint = MaterialTheme.colorScheme.error)
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Highlighted Change / Remaining banner (visible immediately for Cash, Transfer, USD, Mixed)
-      if (paymentMode != CheckoutPaymentMode.CREDIT) {
-        if (changePreview > BigDecimal.ZERO) {
-          Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth().testTag("pos_change_to_return_banner"),
-          ) {
-            Row(
-              modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-              ) {
-                Icon(
-                  Icons.Filled.Payments,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-                Column {
-                  Text(
-                    text = if (paymentMode == CheckoutPaymentMode.TRANSFER) {
-                      "A devolver al cliente"
-                    } else {
-                      "Cambio / Vuelto a devolver"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                  )
-                  Text(
-                    text = "Paga con ${MoneyMath.format(paymentCalc.enteredTotalBase, state.primaryCurrency)} de ${MoneyMath.format(state.totalBase, state.primaryCurrency)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f),
-                  )
-                }
-              }
-              Text(
-                text = MoneyMath.format(changePreview, state.primaryCurrency),
-                style = MaterialTheme.typography.titleLarge.merge(MonoMetricMedium),
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.testTag("pos_change_to_return_text"),
-              )
-            }
-          }
-        } else if (pendingDebtPreview > BigDecimal.ZERO && paymentCalc.enteredTotalBase > BigDecimal.ZERO) {
-          Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)),
+      // FOOTER FIJO SIEMPRE VISIBLE (Vuelto, Total y Botón Finalizar Compra)
+      HorizontalDivider(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (paymentMode != CheckoutPaymentMode.CREDIT && changePreview > BigDecimal.ZERO) {
+          Surface(
+            color = MaterialTheme.colorScheme.tertiaryContainer,
             shape = MaterialTheme.shapes.small,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("pos_change_to_return_banner"),
           ) {
             Row(
               modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
-              Text(
-                text = "Falta por cubrir (pasa a crédito)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-              )
-              Text(
-                text = MoneyMath.format(pendingDebtPreview, state.primaryCurrency),
-                style = MonoMetricMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-              )
-            }
-          }
-        }
-      }
-
-      // 3. Productos en el carrito (compacto)
-      Text("Productos (${state.cartItems.size})", style = MaterialTheme.typography.titleSmall)
-      state.cartItems.forEach { line ->
-        Card(
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
-          shape = MaterialTheme.shapes.small,
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-          ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-              Text(line.productWithDetails.product.name, style = MaterialTheme.typography.titleSmall)
-              Text(
-                text = "${MoneyMath.formatQuantity(line.enteredQuantity)} ${line.unitLabel} • ${MoneyMath.format(line.lineTotalBase, state.primaryCurrency)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-              )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              val step = if (line.unitLabel == "lb") BigDecimal("0.25") else BigDecimal.ONE
-              IconButton(
-                onClick = { onUpdateQty(line.lineId, line.enteredQuantity.subtract(step)) },
-                modifier = Modifier.minimumInteractiveComponentSize(),
-              ) {
-                Icon(Icons.Filled.Remove, contentDescription = "Disminuir cantidad")
-              }
-              IconButton(
-                onClick = { onUpdateQty(line.lineId, line.enteredQuantity.add(step)) },
-                modifier = Modifier.minimumInteractiveComponentSize(),
-              ) {
-                Icon(Icons.Filled.Add, contentDescription = "Aumentar cantidad")
-              }
-              IconButton(
-                onClick = { onRemoveItem(line.lineId) },
-                modifier = Modifier.minimumInteractiveComponentSize(),
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
               ) {
                 Icon(
-                  Icons.Filled.DeleteOutline,
-                  contentDescription = "Quitar línea",
-                  tint = MaterialTheme.colorScheme.error,
+                  Icons.Filled.Payments,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                  modifier = Modifier.size(18.dp),
+                )
+                Text(
+                  text = if (paymentMode == CheckoutPaymentMode.TRANSFER) "Devolver al cliente" else "Cambio / Vuelto",
+                  style = MaterialTheme.typography.labelLarge,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
               }
+              Text(
+                text = MoneyMath.format(changePreview, state.primaryCurrency),
+                style = MaterialTheme.typography.titleMedium.merge(MonoMetricMedium),
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.testTag("pos_change_to_return_text"),
+              )
             }
           }
-        }
-      }
-
-      // 4. Descuento y Nota opcional en una fila compacta
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-          value = discountText,
-          onValueChange = { text ->
-            discountText = text
-            val parsed = MoneyMath.parseMoneyOrNull(text) ?: MoneyMath.ZERO
-            onDiscountChange(parsed.max(MoneyMath.ZERO))
-          },
-          label = { Text("Descuento") },
-          singleLine = true,
-          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-          modifier = Modifier.weight(0.45f).testTag("pos_discount_input"),
-        )
-        OutlinedTextField(
-          value = notes,
-          onValueChange = { notes = it },
-          label = { Text("Nota (opcional)") },
-          singleLine = true,
-          modifier = Modifier.weight(0.55f),
-        )
-      }
-
-      // 5. Resumen y Confirmar Venta
-      Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
-        shape = MaterialTheme.shapes.medium,
-      ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          if (state.discountBase > BigDecimal.ZERO) {
-            CheckoutSummaryRow("Subtotal", MoneyMath.format(state.subtotalBase, state.primaryCurrency))
-            CheckoutSummaryRow("Descuento", "-${MoneyMath.format(state.discountBase, state.primaryCurrency)}")
-          }
-          CheckoutSummaryRow("Total a cobrar", MoneyMath.format(state.totalBase, state.primaryCurrency), bold = true)
-          if (paymentCalc.enteredTotalBase > BigDecimal.ZERO && paymentMode != CheckoutPaymentMode.CREDIT) {
-            CheckoutSummaryRow("Recibido", MoneyMath.format(paymentCalc.enteredTotalBase, state.primaryCurrency))
-          }
-          CheckoutSummaryRow("Aplicado a venta", MoneyMath.format(paidBasePreview, state.primaryCurrency))
-          if (changePreview > BigDecimal.ZERO) {
-            CheckoutSummaryRow("Devolver (Cambio)", MoneyMath.format(changePreview, state.primaryCurrency), bold = true)
-          }
-          if (pendingDebtPreview > BigDecimal.ZERO) {
-            CheckoutSummaryRow(
-              "Saldo a crédito",
-              MoneyMath.format(pendingDebtPreview, state.primaryCurrency),
-              isError = true,
+        } else if (pendingDebtPreview > BigDecimal.ZERO && paymentMode != CheckoutPaymentMode.CREDIT) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Text(
+              text = "Saldo pendiente (crédito)",
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+              text = MoneyMath.format(pendingDebtPreview, state.primaryCurrency),
+              style = MonoMetricMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.error,
             )
           }
         }
-      }
 
-      if (pendingDebtPreview > BigDecimal.ZERO && state.selectedCustomerId == null) {
-        Text(
-          text = "⚠ Selecciona un cliente arriba para ventas a crédito o con saldo pendiente.",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.error,
-        )
-      }
-      if (errorText != null) {
-        Text(errorText!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-      }
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Text("Total a cobrar", style = MaterialTheme.typography.titleSmall)
+          Text(
+            text = MoneyMath.format(state.totalBase, state.primaryCurrency),
+            style = MaterialTheme.typography.titleMedium.merge(MonoMetricMedium),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+          )
+        }
 
-      Button(
-        onClick = {
-          when {
-            state.cartItems.isEmpty() -> errorText = "El carrito está vacío."
-            paidBasePreview > state.totalBase -> errorText = "El total pagado supera el total de la venta."
-            pendingDebtPreview > BigDecimal.ZERO && state.selectedCustomerId == null ->
-              errorText = "Selecciona un cliente para registrar el saldo a crédito."
-            else -> {
-              errorText = null
-              onConfirmSale(paymentCalc.appliedPayments, notes)
+        if (pendingDebtPreview > BigDecimal.ZERO && state.selectedCustomerId == null) {
+          Text(
+            text = "⚠ Selecciona un cliente arriba para fiado o saldo pendiente.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+          )
+        }
+        if (errorText != null) {
+          Text(errorText!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+
+        Button(
+          onClick = {
+            when {
+              state.cartItems.isEmpty() -> errorText = "El carrito está vacío."
+              paidBasePreview > state.totalBase -> errorText = "El total pagado supera el total de la venta."
+              pendingDebtPreview > BigDecimal.ZERO && state.selectedCustomerId == null ->
+                errorText = "Selecciona un cliente para registrar el saldo a crédito."
+              else -> {
+                errorText = null
+                onConfirmSale(paymentCalc.appliedPayments, notes)
+              }
             }
-          }
-        },
-        enabled = !state.isSaving,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(50.dp)
-          .testTag("pos_confirm_sale_button"),
-      ) {
-        Text("Confirmar Venta", fontWeight = FontWeight.Bold)
+          },
+          enabled = !state.isSaving,
+          shape = RoundedCornerShape(12.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .testTag("pos_confirm_sale_button"),
+        ) {
+          Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(19.dp))
+          Spacer(Modifier.width(8.dp))
+          Text(
+            text = "Finalizar Compra • ${MoneyMath.format(state.totalBase, state.primaryCurrency)}",
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+          )
+        }
       }
     }
   }
@@ -798,28 +809,6 @@ fun PosCartCheckoutContent(
         }
       },
       onDismiss = { showQuickCustomerDialog = false },
-    )
-  }
-}
-
-@Composable
-private fun CheckoutSummaryRow(
-  label: String,
-  value: String,
-  bold: Boolean = false,
-  isError: Boolean = false,
-) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Text(label, style = if (bold) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodySmall)
-    Text(
-      text = value,
-      style = MonoMetricMedium,
-      fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium,
-      color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
     )
   }
 }

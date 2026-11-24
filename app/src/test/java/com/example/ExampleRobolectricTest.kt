@@ -279,7 +279,7 @@ class ExampleRobolectricTest {
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("pos_confirm_sale_button").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     // 4. Verificar comprobante generado (V-00001) y cerrarlo
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -505,8 +505,8 @@ class ExampleRobolectricTest {
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
-    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("receipt_title").fetchSemanticsNodes().isNotEmpty()
@@ -598,7 +598,7 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("pos_tendered_chip_100").performScrollTo().performClick()
     composeTestRule.onNodeWithTag("pos_change_to_return_text").assertTextEquals("20.00 CUP")
 
-    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performScrollTo().performClick()
+    composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("receipt_title").fetchSemanticsNodes().isNotEmpty()
     }
