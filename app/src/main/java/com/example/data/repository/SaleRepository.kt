@@ -160,6 +160,11 @@ class SaleRepository(private val db: AppDatabase) {
         return@withTransaction existingByRequest.id
       }
 
+      // A sale must always belong to an active cash session. This check runs
+      // inside the same Room transaction, before inventory, sale or payment writes.
+      val openCashSession = saleDao.getOpenCashSession(request.businessId)
+        ?: error("No puedes realizar ventas: primero debes abrir la caja diaria.")
+
       val business = businessConfigDao.getBusinessById(request.businessId)
         ?: error("Negocio no encontrado.")
       val settings = businessConfigDao.getSettings(request.businessId)
@@ -273,7 +278,6 @@ class SaleRepository(private val db: AppDatabase) {
         error("Selecciona un cliente para registrar la venta a crédito o pago parcial.")
       }
 
-      val openCashSession = saleDao.getOpenCashSession(request.businessId)
       val nextNumber = saleDao.countSalesForBusiness(request.businessId) + 1
       val receiptNumber = "V-${nextNumber.toString().padStart(5, '0')}"
 
