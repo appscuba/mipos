@@ -138,18 +138,20 @@ class FinanceRepository(private val db: AppDatabase) {
   }
 
   private suspend fun ensureDefaultExpenseCategories(businessId: Long) {
-    val defaults = listOf(
-      "Transporte", "Combustible", "Entrega y domicilio", "Salarios", "Electricidad",
-      "Agua", "Alquiler", "Internet y teléfono", "Alimentación del personal",
-      "Mantenimiento", "Impuestos y tasas", "Gastos bancarios", "Materiales y suministros", "Otros",
-    )
-    for (name in defaults) {
-      val existing = financeDao.getExpenseCategoryByName(businessId, name)
-      when {
-        existing == null -> financeDao.insertExpenseCategory(
-          ExpenseCategoryEntity(businessId = businessId, name = name, isSystemDefault = true),
-        )
-        !existing.isActive -> financeDao.updateExpenseCategory(existing.copy(isActive = true, isSystemDefault = true))
+    db.withTransaction {
+      val defaults = listOf(
+        "Transporte", "Combustible", "Entrega y domicilio", "Salarios", "Electricidad",
+        "Agua", "Alquiler", "Internet y teléfono", "Alimentación del personal",
+        "Mantenimiento", "Impuestos y tasas", "Gastos bancarios", "Materiales y suministros", "Otros",
+      )
+      for (name in defaults) {
+        val existing = financeDao.getExpenseCategoryByName(businessId, name)
+        when {
+          existing == null -> financeDao.insertExpenseCategory(
+            ExpenseCategoryEntity(businessId = businessId, name = name, isSystemDefault = true),
+          )
+          !existing.isActive -> financeDao.updateExpenseCategory(existing.copy(isActive = true, isSystemDefault = true))
+        }
       }
     }
   }
