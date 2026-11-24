@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -536,7 +537,7 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
     composeTestRule.onNodeWithTag("pos_checkout_scroll")
-      .performScrollToNode("pos_pay_mode_CREDIT")
+      .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
     composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
