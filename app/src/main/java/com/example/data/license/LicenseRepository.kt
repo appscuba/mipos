@@ -16,46 +16,34 @@ class LicenseRepository(
 
   suspend fun initialize() {
     val now = System.currentTimeMillis()
-    preferences.ensureLicenseIdentity(
-      installationId = generateInstallationId(preferences.deviceIdentityFingerprint()),
-      firstLaunchAt = now,
-    )
+    preferences.ensureLicenseIdentity(generateInstallationId(preferences.deviceIdentityFingerprint()), now)
   }
 
   private fun generateInstallationId(fingerprint: String): String {
-    // Formato oficial del plugin: STP-XXXX-XXXX-XXXX (12 caracteres hexadecimales).
-    // Los IDs ya guardados no se modifican para no desvincular licencias existentes.
-    val hex = if (fingerprint.length == 64 && fingerprint.all { it in "0123456789abcdefABCDEF" }) {
-      fingerprint.take(12).uppercase()
-    } else {
-      ByteArray(6).also { SecureRandom().nextBytes(it) }.joinToString("") { byte ->
-        (byte.toInt() and 0xff).toString(16).padStart(2, '0').uppercase()
-      }
-    }
+    val hex = if (fingerprint.length == 64 && fingerprint.all { it in "0123456789abcdefABCDEF" }) fingerprint.take(12).uppercase()
+    else ByteArray(6).also { SecureRandom().nextBytes(it) }.joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0').uppercase() }
     return "STP-" + hex.chunked(4).joinToString("-")
   }
 
-  suspend fun activate(licenseKey: String): LicenseValidationResult {
+  suspend fun requestApproval(): LicenseValidationResult {
     val id = preferences.currentInstallationId()
-    val result = validator.validate(id, licenseKey)
+    val result = validator.validate(id)
     if (result.status != "unavailable") {
-      preferences.saveLicenseResult(licenseKey, result.status, result.expiresAt,
-        if (result.status == "active") System.currentTimeMillis() else 0L)
+      preferences.saveLicenseResult("", result.status, result.expiresAt,
+        if (result.status == "active" || result.status == "pending") System.currentTimeMillis() else 0L)
     }
     return result
   }
 
   suspend fun revalidateIfDue() {
     val prefs = preferences.currentLicenseValues()
-    if (prefs.installationId.isBlank() || prefs.licenseKey.isBlank() || prefs.licenseStatus != "active") return
+    if (prefs.installationId.isBlank() || prefs.licenseStatus !in setOf("active", "pending")) return
     val now = System.currentTimeMillis()
-    if (prefs.lastLicenseValidation > 0L &&
-      now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
-    val result = validator.validate(prefs.installationId, prefs.licenseKey)
-    if (result.status == "active") {
-      preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt, now)
-    } else if (result.status == "revoked" || result.status == "expired" || result.status == "invalid") {
-      preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt, 0L)
+    if (prefs.lastLicenseValidation > 0L && now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
+    val result = validator.validate(prefs.installationId)
+    if (result.status != "unavailable") {
+      preferences.saveLicenseResult("", result.status, result.expiresAt,
+        if (result.status == "active" || result.status == "pending") now else 0L)
     }
   }
 }
