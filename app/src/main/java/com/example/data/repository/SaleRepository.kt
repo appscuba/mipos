@@ -160,6 +160,12 @@ class SaleRepository(private val db: AppDatabase) {
         return@withTransaction existingByRequest.id
       }
 
+      // Every new sale must belong to an open cash session. Enforce this
+      // inside the transaction so no sale or stock movement can be recorded
+      // when the cashier has not opened the drawer.
+      val openCashSession = saleDao.getOpenCashSession(request.businessId)
+        ?: error("Debes abrir la caja antes de registrar una venta.")
+
       val business = businessConfigDao.getBusinessById(request.businessId)
         ?: error("Negocio no encontrado.")
       val settings = businessConfigDao.getSettings(request.businessId)
@@ -273,7 +279,6 @@ class SaleRepository(private val db: AppDatabase) {
         error("Selecciona un cliente para registrar la venta a crédito o pago parcial.")
       }
 
-      val openCashSession = saleDao.getOpenCashSession(request.businessId)
       val nextNumber = saleDao.countSalesForBusiness(request.businessId) + 1
       val receiptNumber = "V-${nextNumber.toString().padStart(5, '0')}"
 
