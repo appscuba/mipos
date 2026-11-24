@@ -452,6 +452,7 @@ fun FinanceScreen(
   }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SalaryExpenseDialog(
   categories: List<ExpenseCategoryEntity>,
