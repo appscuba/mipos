@@ -31,7 +31,7 @@ import org.robolectric.annotation.Config
 import java.math.BigDecimal
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class Phase3PurchaseAndCostTest {
 
   private lateinit var context: Context
