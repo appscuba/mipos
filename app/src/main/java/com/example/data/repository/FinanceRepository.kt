@@ -15,6 +15,7 @@ import com.example.data.local.db.entity.PaymentEntity
 import com.example.data.local.db.entity.SaleEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -132,6 +133,25 @@ class FinanceRepository(private val db: AppDatabase) {
       customerReceivableBase = receivable,
       supplierPayableBase = payable,
     )
+  }.onStart {
+    ensureDefaultExpenseCategories(businessId)
+  }
+
+  private suspend fun ensureDefaultExpenseCategories(businessId: Long) {
+    val defaults = listOf(
+      "Transporte", "Combustible", "Entrega y domicilio", "Salarios", "Electricidad",
+      "Agua", "Alquiler", "Internet y teléfono", "Alimentación del personal",
+      "Mantenimiento", "Impuestos y tasas", "Gastos bancarios", "Materiales y suministros", "Otros",
+    )
+    for (name in defaults) {
+      val existing = financeDao.getExpenseCategoryByName(businessId, name)
+      when {
+        existing == null -> financeDao.insertExpenseCategory(
+          ExpenseCategoryEntity(businessId = businessId, name = name, isSystemDefault = true),
+        )
+        !existing.isActive -> financeDao.updateExpenseCategory(existing.copy(isActive = true, isSystemDefault = true))
+      }
+    }
   }
 
   fun observeExchangeRates(businessId: Long) =
