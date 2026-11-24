@@ -48,7 +48,8 @@ class Phase4PosAndSalesTest {
   private var businessId: Long = 0L
 
   @Before
-  fun setUp(): Unit = runBlocking {
+  fun setUp() {
+    runBlocking {
     context = ApplicationProvider.getApplicationContext()
     db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
       .allowMainThreadQueries()
@@ -76,6 +77,7 @@ class Phase4PosAndSalesTest {
       ),
     )
     financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Caja de pruebas")
+    }
   }
 
   @After
