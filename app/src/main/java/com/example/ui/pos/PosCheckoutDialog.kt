@@ -341,7 +341,8 @@ fun PosCartCheckoutContent(
         modifier = Modifier
           .fillMaxWidth()
           .weight(1f)
-          .verticalScroll(rememberScrollState()),
+          .verticalScroll(rememberScrollState())
+          .testTag("pos_checkout_scroll"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
         // 1. Cliente (1 fila compacta)
