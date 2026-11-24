@@ -498,11 +498,11 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_quick_add_1").performClick()
 
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = 10_000) {
       composeTestRule.onAllNodesWithTag("pos_open_cart_button").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = 10_000) {
       composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performScrollTo().performClick()

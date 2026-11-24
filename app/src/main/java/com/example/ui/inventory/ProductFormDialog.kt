@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -157,15 +159,19 @@ fun ProductFormDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(14.dp)
-        .widthIn(max = 580.dp)
-        .heightIn(max = 840.dp)
+        .fillMaxHeight(0.90f)
+        .padding(16.dp)
+        .widthIn(max = 600.dp)
         .imePadding(),
       shape = MaterialTheme.shapes.large,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = 6.dp,
     ) {
-      Column(modifier = Modifier.padding(16.dp)) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(16.dp),
+      ) {
         // Header
         Row(
           modifier = Modifier.fillMaxWidth(),
