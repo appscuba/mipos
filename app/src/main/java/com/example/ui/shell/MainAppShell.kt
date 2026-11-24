@@ -489,6 +489,7 @@ fun MainAppShell(
                   financeRepository = container.financeRepository,
                   businessRepository = container.businessRepository,
                   currentUserIdProvider = currentUserIdProvider,
+                  licenseRepository = container.licenseRepository,
                 ),
               )
               CustomersScreen(viewModel = customersVm)
