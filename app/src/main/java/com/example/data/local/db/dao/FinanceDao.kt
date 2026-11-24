@@ -22,6 +22,9 @@ interface FinanceDao {
   @Query("SELECT * FROM expense_categories WHERE businessId = :businessId AND isActive = 1 ORDER BY isSystemDefault DESC, name ASC")
   fun observeActiveExpenseCategories(businessId: Long): Flow<List<ExpenseCategoryEntity>>
 
+  @Query("SELECT * FROM expense_categories WHERE businessId = :businessId ORDER BY name ASC")
+  fun observeExpenseCategoriesForReport(businessId: Long): Flow<List<ExpenseCategoryEntity>>
+
   @Query("SELECT * FROM expense_categories WHERE businessId = :businessId AND LOWER(name) = LOWER(:name) LIMIT 1")
   suspend fun getExpenseCategoryByName(businessId: Long, name: String): ExpenseCategoryEntity?
 
