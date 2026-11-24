@@ -491,7 +491,12 @@ class FinanceRepository(private val db: AppDatabase) {
 
     return db.withTransaction {
       val session = financeDao.getCashSessionById(sessionId) ?: error("Sesión de caja no encontrada.")
+      require(session.businessId == businessId) { "La caja no pertenece a este negocio." }
       require(session.status == "OPEN") { "Esta sesión de caja ya se encuentra cerrada." }
+      val currentOpenSession = financeDao.getOpenCashSession(businessId)
+      require(currentOpenSession?.id == sessionId) {
+        "No se puede cerrar: esta ya no es la sesión de caja activa."
+      }
 
       val recomputedExpected = computeExpectedCash(session)
       val difference = MoneyMath.subtract(normalizedCounted, recomputedExpected)
