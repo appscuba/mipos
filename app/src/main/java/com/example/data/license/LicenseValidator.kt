@@ -15,8 +15,8 @@ data class LicenseValidationResult(
 class LicenseValidator(
   private val endpoint: String = PlanLimits.VALIDATION_URL,
 ) {
-  /** POST /wp-json/ptls/v1/app-validate { "device_id": "..." } */
-  suspend fun validate(deviceId: String): LicenseValidationResult = withContext(Dispatchers.IO) {
+  /** Servidor PedritoTech 1.3.0: POST { "device_id": "...", "phone": "..." }. */
+  suspend fun validate(deviceId: String, phone: String): LicenseValidationResult = withContext(Dispatchers.IO) {
     var connection: HttpURLConnection? = null
     try {
       connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -29,7 +29,7 @@ class LicenseValidator(
         setRequestProperty("Accept", "application/json")
         setRequestProperty("Cache-Control", "no-store")
       }
-      val payload = JSONObject().put("device_id", deviceId).toString()
+      val payload = JSONObject().put("device_id", deviceId.trim()).put("phone", phone.trim()).toString()
       connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
       val code = connection.responseCode
       val stream = if (code in 200..299) connection.inputStream else connection.errorStream
@@ -47,7 +47,7 @@ internal fun parseLicenseResponse(body: String, responseCode: Int): LicenseValid
   return try {
     val json = JSONObject(body)
     val status = json.optString("status", "unavailable").trim().lowercase()
-    if (status !in setOf("active", "pending", "revoked", "expired", "not_found")) return unavailableLicenseResult()
+    if (status !in setOf("active", "invalid", "revoked", "expired")) return unavailableLicenseResult()
     if (status == "active" && responseCode !in 200..299) return unavailableLicenseResult()
     val seconds = json.optLong("expira_ts", 0L)
     LicenseValidationResult(status, if (seconds > 0L) seconds * 1_000L else 0L,
