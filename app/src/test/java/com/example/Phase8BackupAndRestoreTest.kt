@@ -41,7 +41,7 @@ import java.io.File
 import java.math.BigDecimal
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class Phase8BackupAndRestoreTest {
 
   private lateinit var context: Context
