@@ -11,6 +11,7 @@ import com.example.data.repository.ConfirmPurchaseRequest
 import com.example.data.repository.ConfirmSaleRequest
 import com.example.data.repository.InitialBusinessSetupRequest
 import com.example.data.repository.InventoryRepository
+import com.example.data.repository.FinanceRepository
 import com.example.data.repository.PresentationDraft
 import com.example.data.repository.ProductModality
 import com.example.data.repository.PurchaseLineInput
@@ -43,6 +44,7 @@ class Phase4PosAndSalesTest {
   private lateinit var inventoryRepo: InventoryRepository
   private lateinit var purchaseRepo: PurchaseRepository
   private lateinit var saleRepo: SaleRepository
+  private lateinit var financeRepo: FinanceRepository
   private var businessId: Long = 0L
 
   @Before
@@ -56,6 +58,7 @@ class Phase4PosAndSalesTest {
     inventoryRepo = InventoryRepository(db = db)
     purchaseRepo = PurchaseRepository(db = db)
     saleRepo = SaleRepository(db = db)
+    financeRepo = FinanceRepository(db = db)
 
     businessId = businessRepo.completeInitialSetup(
       InitialBusinessSetupRequest(
@@ -72,6 +75,7 @@ class Phase4PosAndSalesTest {
         allowNegativeStock = false,
       ),
     )
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Caja de pruebas")
   }
 
   @After
@@ -309,6 +313,30 @@ class Phase4PosAndSalesTest {
     val movements = inventoryRepo.observeProductMovements(jugoId).first()
     assertTrue(movements.any { it.movementType == "SALE_RETURN_IN" })
     assertTrue(movements.any { it.movementType == "SALE_ANNUL_IN" })
+  }
+
+  @Test
+  fun `venta sin caja abierta es rechazada antes de modificar datos`() = runBlocking {
+    val openSession = financeRepo.observeOpenCashSession(businessId).first()!!
+    financeRepo.closeCashSession(businessId, openSession.id, BigDecimal.ZERO, "Cierre de prueba")
+
+    var rejected = false
+    try {
+      saleRepo.confirmSale(
+        ConfirmSaleRequest(
+          businessId = businessId,
+          clientRequestId = "sale-without-cash-session",
+          lines = listOf(
+            SaleLineInput(9999L, "Producto de prueba", "u", BigDecimal.ONE, BigDecimal.ONE),
+          ),
+        ),
+      )
+    } catch (error: IllegalStateException) {
+      rejected = error.message?.contains("abrir la caja", ignoreCase = true) == true
+    }
+
+    assertTrue("La venta debe rechazarse si no hay caja abierta", rejected)
+    assertEquals(0, db.saleDao().countSalesForBusiness(businessId))
   }
 
   @Test
