@@ -109,12 +109,14 @@ fun PosScreen(
         .fillMaxSize()
         .padding(innerPadding),
     ) {
-      val isWide = maxWidth >= 600.dp
+      // Reserve the split catalog/cart workspace for true tablet-sized windows.
+      // Narrow phones and compact tablets keep the full-width catalog + bottom cart flow.
+      val isWide = maxWidth >= 840.dp
       val isCompact = maxWidth < 360.dp
 
       if (isWide) {
         Row(
-          modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+          modifier = Modifier.fillMaxSize().padding(horizontal = if (maxWidth >= 1000.dp) 20.dp else 12.dp, vertical = 8.dp),
           horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
           PosCatalogPane(
