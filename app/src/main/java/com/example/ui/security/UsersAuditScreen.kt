@@ -163,7 +163,7 @@ fun UsersAuditScreen(
           Text("Perfiles y Usuarios (${state.users.size})", style = MaterialTheme.typography.titleMedium)
         }
 
-        items(state.users, key = { it.user.id }) { item ->
+        items(state.users, key = { "user_${it.user.id}" }) { item ->
           val isCurrent = state.activeSession.user?.id == item.user.id
           Card(
             shape = MaterialTheme.shapes.medium,
@@ -253,7 +253,7 @@ fun UsersAuditScreen(
             }
           }
 
-          items(state.auditLogs, key = { it.id }) { log ->
+          items(state.auditLogs, key = { "audit_${it.id}" }) { log ->
             Card(
               shape = MaterialTheme.shapes.small,
               colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
