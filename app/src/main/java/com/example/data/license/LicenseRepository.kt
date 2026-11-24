@@ -55,7 +55,7 @@ class LicenseRepository(
     if (result.status == "active") {
       preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt, now)
     } else if (result.status == "revoked" || result.status == "expired" || result.status == "invalid") {
-      preferences.saveLicenseResult(prefs.licensePhone, result.status, result.expiresAt, 0L)
+      preferences.saveLicenseResult(prefs.licenseKey, result.status, result.expiresAt, 0L)
     }
   }
 }
