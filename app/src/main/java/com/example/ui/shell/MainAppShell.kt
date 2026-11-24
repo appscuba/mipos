@@ -73,6 +73,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.AppContainer
+import com.example.data.license.LicenseSnapshot
+import com.example.data.license.PlanStatus
+import com.example.ui.license.LicenseActivationScreen
+import com.example.ui.license.LicenseViewModel
 import com.example.data.repository.AppPermissions
 import com.example.ui.MainAppState
 import com.example.ui.backups.BackupsScreen
@@ -181,6 +185,7 @@ fun MainAppShell(
     currentDestination?.hasRoute<AppDestination.UsersAudit>() == true -> "Usuarios y Auditoría"
     currentDestination?.hasRoute<AppDestination.Backups>() == true -> "Respaldos"
     currentDestination?.hasRoute<AppDestination.BusinessSettings>() == true -> "Configuración"
+    currentDestination?.hasRoute<AppDestination.LicenseActivation>() == true -> "Activar licencia"
     else -> "Stock+"
   }
 
@@ -557,9 +562,37 @@ fun MainAppShell(
                   preferences = container.preferences,
                 ),
               )
+              val prefs = appState.preferences
+              val licenseSnapshot = LicenseSnapshot(
+                prefs.installationId, prefs.licensePhone, prefs.licenseStatus,
+                prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt,
+              )
+              val plan = licenseSnapshot.plan()
+              val planSummary = when (plan) {
+                PlanStatus.LICENSED -> if (prefs.licenseExpiresAt == 0L) "Licencia activa — de por vida" else
+                  "Licencia activa — válida hasta " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(prefs.licenseExpiresAt))
+                PlanStatus.TRIAL -> "Prueba gratuita — te quedan ${licenseSnapshot.trialDaysRemaining()} días"
+                PlanStatus.FREE -> "Plan gratuito — 30 productos · 100 ventas/mes · 10 clientes"
+              }
               BusinessSettingsScreen(
                 viewModel = settingsVm,
                 onNavigateToBackups = { navController.navigate(AppDestination.Backups) },
+                onActivateLicense = { navController.navigate(AppDestination.LicenseActivation) },
+                planSummary = planSummary,
+              )
+            }
+            composable<AppDestination.LicenseActivation> {
+              val licenseVm: LicenseViewModel = viewModel(
+                factory = LicenseViewModel.Factory(container.licenseRepository),
+              )
+              val licenseState by licenseVm.snapshot.collectAsStateWithLifecycle()
+              androidx.compose.runtime.LaunchedEffect(Unit) { licenseVm.initialize() }
+              LicenseActivationScreen(
+                repository = container.licenseRepository,
+                deviceId = licenseState.deviceId,
+                currentPhone = licenseState.phone,
+                onActivated = { navController.popBackStack() },
+                modifier = Modifier.fillMaxSize(),
               )
             }
           }
