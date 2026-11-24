@@ -153,6 +153,26 @@ fun ReportsScreen(
             }
           }
 
+          if (report.expenseBreakdown.isNotEmpty()) {
+            item {
+              Card(
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.testTag("report_expense_breakdown"),
+              ) {
+                Column(
+                  modifier = Modifier.padding(16.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                  Text("Gastos por categoría", style = MaterialTheme.typography.titleMedium)
+                  report.expenseBreakdown.forEach { expense ->
+                    ReportLine("${expense.categoryName} (${expense.expenseCount})", MoneyMath.format(expense.totalBase, cur))
+                  }
+                }
+              }
+            }
+          }
+
           item {
             Card(
               shape = MaterialTheme.shapes.medium,
