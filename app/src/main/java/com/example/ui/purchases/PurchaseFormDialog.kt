@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -208,14 +210,15 @@ fun PurchaseFormDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(14.dp)
+        .fillMaxHeight(0.92f)
+        .padding(12.dp)
         .widthIn(max = 760.dp)
         .heightIn(max = 860.dp),
       shape = MaterialTheme.shapes.large,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = 6.dp,
     ) {
-      Column(modifier = Modifier.padding(16.dp)) {
+      Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         // Header
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -242,7 +245,7 @@ fun PurchaseFormDialog(
 
         Column(
           modifier = Modifier
-            .weight(1f, fill = false)
+            .weight(1f)
             .verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -304,26 +307,32 @@ fun PurchaseFormDialog(
             }
           }
 
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-          ) {
-            OutlinedTextField(
-              value = invoiceNumber,
-              onValueChange = { invoiceNumber = it },
-              label = { Text("Nro. factura / nota") },
-              singleLine = true,
-              modifier = Modifier.weight(1f).testTag("purchase_invoice_input"),
-            )
-            OutlinedTextField(
-              value = exchangeRateText,
-              onValueChange = { exchangeRateText = it },
-              label = { Text("Tasa a $primaryCurrency") },
-              singleLine = true,
-              enabled = selectedCurrencyCode != primaryCurrency,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-              modifier = Modifier.weight(1f).testTag("purchase_exchange_rate_input"),
-            )
+          BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compactWidth = maxWidth < 440.dp
+            val fieldModifier = if (compactWidth) Modifier.fillMaxWidth() else Modifier.weight(1f)
+            val fields: @Composable () -> Unit = {
+              OutlinedTextField(
+                value = invoiceNumber,
+                onValueChange = { invoiceNumber = it },
+                label = { Text("Nro. factura / nota") },
+                singleLine = true,
+                modifier = fieldModifier.testTag("purchase_invoice_input"),
+              )
+              OutlinedTextField(
+                value = exchangeRateText,
+                onValueChange = { exchangeRateText = it },
+                label = { Text("Tasa a $primaryCurrency") },
+                singleLine = true,
+                enabled = selectedCurrencyCode != primaryCurrency,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = fieldModifier.testTag("purchase_exchange_rate_input"),
+              )
+            }
+            if (compactWidth) {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { fields() }
+            } else {
+              Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { fields() }
+            }
           }
 
           // Moneda selector
