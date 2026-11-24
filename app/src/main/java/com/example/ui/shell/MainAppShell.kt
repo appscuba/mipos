@@ -585,7 +585,7 @@ fun MainAppShell(
               )
               val prefs = appState.preferences
               val licenseSnapshot = LicenseSnapshot(
-                prefs.installationId, prefs.licensePhone, prefs.licenseStatus,
+                prefs.installationId, prefs.licenseKey, prefs.licenseStatus,
                 prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt,
               )
               val plan = licenseSnapshot.plan()
