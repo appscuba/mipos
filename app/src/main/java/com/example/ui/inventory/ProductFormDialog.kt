@@ -159,7 +159,7 @@ fun ProductFormDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .fillMaxWidth()
+        .fillMaxHeight(0.92f)
         .heightIn(max = 640.dp)
         .padding(16.dp)
         .widthIn(max = 600.dp)
