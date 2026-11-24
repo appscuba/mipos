@@ -159,7 +159,8 @@ fun ProductFormDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
-        .fillMaxHeight(0.90f)
+        .fillMaxWidth()
+        .heightIn(max = 640.dp)
         .padding(16.dp)
         .widthIn(max = 600.dp)
         .imePadding(),
@@ -244,15 +245,26 @@ fun ProductFormDialog(
               FilterChip(
                 selected = modality == entry,
                 onClick = {
-                  modality = entry
-                  if (entry == ProductModality.WEIGHT) {
-                    defaultSaleUnit = "POUND"
-                    initialUnitOption = "lb"
-                  } else {
-                    defaultSaleUnit = "UNIT"
-                    initialUnitOption = "u"
+                  if (!isEditing && modality != entry) {
+                    // A quantity/presentation entered as grams cannot be reused as units (or vice versa).
+                    initialStockText = ""
+                    presentations.clear()
+                    presName = ""
+                    presQtyText = ""
+                    presPriceText = ""
+                    lowStockText = ""
+                    modality = entry
+                    if (entry == ProductModality.WEIGHT) {
+                      defaultSaleUnit = "POUND"
+                      initialUnitOption = "lb"
+                    } else {
+                      defaultSaleUnit = "UNIT"
+                      initialUnitOption = "u"
+                    }
+                    errorText = null
                   }
                 },
+                enabled = !isEditing,
                 label = { Text(entry.label) },
                 modifier = Modifier.testTag("product_modality_${entry.code}"),
               )
@@ -525,10 +537,29 @@ fun ProductFormDialog(
                 errorText = "El nombre del producto es obligatorio."
                 return@Button
               }
-              val price = MoneyMath.parseMoneyOrNull(salePriceText) ?: MoneyMath.ZERO
-              val cost = MoneyMath.parseMoneyOrNull(avgCostText) ?: MoneyMath.ZERO
-              val initQty = MoneyMath.parseDecimalOrNull(initialStockText) ?: BigDecimal.ZERO
-              val lowThreshold = MoneyMath.parseDecimalOrNull(lowStockText) ?: BigDecimal.ZERO
+              val price = MoneyMath.parseMoneyOrNull(salePriceText)
+              val cost = if (avgCostText.isBlank()) MoneyMath.ZERO else MoneyMath.parseMoneyOrNull(avgCostText)
+              val initQty = if (initialStockText.isBlank()) BigDecimal.ZERO else MoneyMath.parseDecimalOrNull(initialStockText)
+              val lowThreshold = if (lowStockText.isBlank()) BigDecimal.ZERO else MoneyMath.parseDecimalOrNull(lowStockText)
+
+              when {
+                price == null || price <= BigDecimal.ZERO -> {
+                  errorText = "Introduce un precio de venta válido mayor que cero."
+                  return@Button
+                }
+                cost == null || cost < BigDecimal.ZERO -> {
+                  errorText = "Introduce un costo válido o deja el campo vacío."
+                  return@Button
+                }
+                initQty == null || initQty < BigDecimal.ZERO -> {
+                  errorText = "La existencia inicial debe ser una cantidad válida y no negativa."
+                  return@Button
+                }
+                lowThreshold == null || lowThreshold < BigDecimal.ZERO -> {
+                  errorText = "El umbral de stock debe ser válido y no negativo."
+                  return@Button
+                }
+              }
               onSave(
                 SaveProductRequest(
                   productId = editingItem?.product?.id,
@@ -539,11 +570,11 @@ fun ProductFormDialog(
                   modality = modality,
                   defaultSaleUnit = defaultSaleUnit,
                   salePrice = price,
-                  avgCostPerSaleUnit = cost,
-                  initialStockEnteredQty = initQty,
+                  avgCostPerSaleUnit = cost ?: MoneyMath.ZERO,
+                  initialStockEnteredQty = initQty ?: BigDecimal.ZERO,
                   initialStockUnitLabel = initialUnitOption,
                   initialStockFactorToBase = initialFactor,
-                  lowStockThresholdBase = lowThreshold,
+                  lowStockThresholdBase = lowThreshold ?: BigDecimal.ZERO,
                   trackInventory = trackInventory,
                   presentations = presentations.toList(),
                 ),
