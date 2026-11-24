@@ -180,6 +180,26 @@ fun PosItemSelectorDialog(
               }
             }
           }
+        } else if (isWeight && selectedUnit.label == "kg") {
+          Text("Fracciones rápidas (kilogramos)", style = MaterialTheme.typography.labelMedium)
+          FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+              "¼ kg" to "0.25",
+              "½ kg" to "0.5",
+              "¾ kg" to "0.75",
+              "1 kg" to "1",
+              "1½ kg" to "1.5",
+              "2 kg" to "2",
+            ).forEach { (label, amount) ->
+              OutlinedButton(
+                onClick = { qtyText = amount },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(40.dp).testTag("pos_kg_fraction_$amount"),
+              ) {
+                Text(label)
+              }
+            }
+          }
         } else if (isWeight && selectedUnit.label == "g") {
           Text("Gramos rápidos", style = MaterialTheme.typography.labelMedium)
           FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
