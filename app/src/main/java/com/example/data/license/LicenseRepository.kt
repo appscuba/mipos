@@ -25,25 +25,27 @@ class LicenseRepository(
     return "STP-" + hex.chunked(4).joinToString("-")
   }
 
-  suspend fun requestApproval(): LicenseValidationResult {
-    val id = preferences.currentInstallationId()
-    val result = validator.validate(id)
+  suspend fun requestApproval(phone: String): LicenseValidationResult {
+    val normalizedPhone = phone.trim()
+    if (normalizedPhone.isBlank()) return LicenseValidationResult("invalid", message = "Introduce el teléfono registrado para esta licencia.")
+    preferences.saveLicensePhone(normalizedPhone)
+    val result = validator.validate(preferences.currentInstallationId(), normalizedPhone)
     if (result.status != "unavailable") {
       preferences.saveLicenseResult("", result.status, result.expiresAt,
-        if (result.status == "active" || result.status == "pending") System.currentTimeMillis() else 0L)
+        if (result.status == "active") System.currentTimeMillis() else 0L)
     }
     return result
   }
 
   suspend fun revalidateIfDue() {
     val prefs = preferences.currentLicenseValues()
-    if (prefs.installationId.isBlank() || prefs.licenseStatus !in setOf("active", "pending")) return
+    if (prefs.installationId.isBlank() || prefs.licensePhone.isBlank() || prefs.licenseStatus != "active") return
     val now = System.currentTimeMillis()
     if (prefs.lastLicenseValidation > 0L && now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
-    val result = validator.validate(prefs.installationId)
+    val result = validator.validate(prefs.installationId, prefs.licensePhone)
     if (result.status != "unavailable") {
       preferences.saveLicenseResult("", result.status, result.expiresAt,
-        if (result.status == "active" || result.status == "pending") now else 0L)
+        if (result.status == "active") now else 0L)
     }
   }
 }
