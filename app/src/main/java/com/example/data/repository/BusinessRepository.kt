@@ -282,8 +282,9 @@ class BusinessRepository(
         "Otros",
       )
       for (categoryName in defaultExpenseCategories) {
-        if (financeDao.getExpenseCategoryByName(businessId, categoryName) == null) {
-          catalogDao.insertExpenseCategories(
+        val existingCategory = financeDao.getExpenseCategoryByName(businessId, categoryName)
+        when {
+          existingCategory == null -> catalogDao.insertExpenseCategories(
             listOf(
               ExpenseCategoryEntity(
                 businessId = businessId,
@@ -291,6 +292,9 @@ class BusinessRepository(
                 isSystemDefault = true,
               ),
             ),
+          )
+          !existingCategory.isActive -> financeDao.updateExpenseCategory(
+            existingCategory.copy(isActive = true, isSystemDefault = true),
           )
         }
       }
