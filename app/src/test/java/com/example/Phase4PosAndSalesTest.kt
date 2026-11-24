@@ -193,6 +193,59 @@ class Phase4PosAndSalesTest {
   }
 
   @Test
+  fun `venta de medio kilogramo descuenta 500 gramos y calcula precio costo y ganancia`() = runBlocking {
+    val harinaId = inventoryRepo.saveProduct(
+      SaveProductRequest(
+        businessId = businessId,
+        categoryId = null,
+        name = "Harina",
+        sku = "HAR-KG",
+        modality = ProductModality.WEIGHT,
+        defaultSaleUnit = "KG",
+        salePrice = BigDecimal("1000.00"),
+        avgCostPerSaleUnit = BigDecimal("600.00"),
+        initialStockEnteredQty = BigDecimal("2"),
+        initialStockUnitLabel = "kg",
+        initialStockFactorToBase = BigDecimal("1000"),
+      ),
+    )
+
+    val saleId = saleRepo.confirmSale(
+      ConfirmSaleRequest(
+        businessId = businessId,
+        clientRequestId = "req-harina-half-kg",
+        payments = listOf(
+          SalePaymentInput(
+            paymentMethod = "CASH",
+            currencyCode = "CUP",
+            originalAmount = BigDecimal("500.00"),
+            exchangeRateToBase = BigDecimal.ONE,
+          ),
+        ),
+        lines = listOf(
+          SaleLineInput(
+            productId = harinaId,
+            productName = "Harina",
+            unitLabel = "kg",
+            enteredQuantity = BigDecimal("0.5"),
+            conversionFactorToBase = BigDecimal("1000"),
+          ),
+        ),
+      ),
+    )
+
+    val sale = db.saleDao().getSaleById(saleId)!!
+    val detail = db.saleDao().getSaleDetails(saleId).single()
+    val harina = db.inventoryDao().getProductById(harinaId)!!
+
+    assertEquals(0, BigDecimal("500.00").compareTo(sale.totalBase))
+    assertEquals(0, BigDecimal("300.00").compareTo(sale.totalCostOfGoodsBase))
+    assertEquals(0, BigDecimal("200.00").compareTo(sale.grossProfitBase))
+    assertEquals(0, BigDecimal("500").compareTo(detail.baseQuantityDeducted))
+    assertEquals(0, BigDecimal("1500").compareTo(harina.stockBaseQty))
+  }
+
+  @Test
   fun `venta mixta en CUP y USD con saldo a credito devolucion parcial y anulacion no destructiva`() = runBlocking {
     val customerId = saleRepo.saveCustomer(
       businessId = businessId,
