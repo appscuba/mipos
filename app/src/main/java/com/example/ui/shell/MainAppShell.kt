@@ -76,6 +76,7 @@ import com.example.AppContainer
 import com.example.data.license.LicenseSnapshot
 import com.example.data.license.PlanStatus
 import com.example.ui.license.LicenseActivationScreen
+import com.example.ui.license.LicenseRequiredScreen
 import com.example.ui.license.LicenseViewModel
 import com.example.data.repository.AppPermissions
 import com.example.ui.MainAppState
