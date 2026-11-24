@@ -3,7 +3,7 @@ package com.example.data.license
 import com.example.data.preferences.AppPreferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.UUID
+import java.security.SecureRandom
 
 class LicenseRepository(
   private val preferences: AppPreferencesDataStore,
@@ -17,10 +17,19 @@ class LicenseRepository(
   suspend fun initialize() {
     val now = System.currentTimeMillis()
     preferences.ensureLicenseIdentity(
-      installationId = "STP-" + UUID.randomUUID().toString().replace("-", "")
-        .take(12).uppercase().chunked(4).joinToString("-"),
+      installationId = generateInstallationId(),
       firstLaunchAt = now,
     )
+  }
+
+  private fun generateInstallationId(): String {
+    // 128 bits aleatorios: evita los IDs cortos de 48 bits de versiones previas.
+    val bytes = ByteArray(16)
+    SecureRandom().nextBytes(bytes)
+    val hex = bytes.joinToString("") { byte ->
+      (byte.toInt() and 0xff).toString(16).padStart(2, '0').uppercase()
+    }
+    return "STP-" + hex.chunked(4).joinToString("-")
   }
 
   suspend fun activate(phone: String): LicenseValidationResult {
