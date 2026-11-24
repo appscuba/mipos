@@ -34,14 +34,14 @@ import kotlinx.coroutines.launch
 fun LicenseActivationScreen(
   repository: LicenseRepository,
   deviceId: String,
-  currentLicenseKey: String,
+  savedPhone: String = "",
   onActivated: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
   val clipboard = LocalClipboardManager.current
   val scope = rememberCoroutineScope()
-  var phone by remember { mutableStateOf("") }
+  var phone by remember(savedPhone) { mutableStateOf(savedPhone) }
   var message by remember { mutableStateOf<String?>(null) }
   var loading by remember { mutableStateOf(false) }
   var currentStatus by remember { mutableStateOf("") }
