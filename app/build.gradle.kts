@@ -64,8 +64,16 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      // Let Robolectric resolve the matching Android SDK artifact from its declared
-      // @Config(sdk = [35]) test target. Avoid machine-specific local Maven paths.
+      // Robolectric's default repo1.maven.org endpoint can fail from CI runners.
+      // Use Maven Central's canonical endpoint so Android SDK artifacts for @Config(sdk = [35])
+      // are fetched consistently instead of failing every Robolectric test at runtime.
+      all {
+        it.systemProperty(
+          "robolectric.dependency.repo.url",
+          "https://repo.maven.apache.org/maven2",
+        )
+        it.systemProperty("robolectric.dependency.repo.id", "central")
+      }
     }
   }
   dependenciesInfo {
