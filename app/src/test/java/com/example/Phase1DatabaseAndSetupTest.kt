@@ -70,7 +70,14 @@ class Phase1DatabaseAndSetupTest {
     assertEquals(0, BigDecimal("500.0000").compareTo(snapshot.settings?.gramsPerPound))
     assertEquals(2, snapshot.exchangeRates.size)
     assertEquals(5, snapshot.categoriesCount)
-    assertEquals(7, snapshot.expenseCategoriesCount)
+    // The setup seeds the complete expense catalog, including operating costs
+    // needed for accurate profit and cash-flow reporting.
+    assertEquals(14, snapshot.expenseCategoriesCount)
+    val expenseCategoryNames = db.catalogDao().observeExpenseCategories(businessId).first()
+      .map { it.name }
+      .toSet()
+    assertTrue("Debe incluir salarios", "Salarios" in expenseCategoryNames)
+    assertTrue("Debe incluir transporte", "Transporte" in expenseCategoryNames)
 
     val ownerRole = db.securityDao().getRoleByCode("OWNER")
     val clerkRole = db.securityDao().getRoleByCode("CLERK")
