@@ -24,6 +24,7 @@ data class UserPreferences(
   val lastBackupTimestamp: Long = 0L,
   val installationId: String = "",
   val licensePhone: String = "",
+  val licenseKey: String = "",
   val licenseStatus: String = "",
   val licenseExpiresAt: Long = 0L,
   val lastLicenseValidation: Long = 0L,
@@ -62,6 +63,7 @@ class AppPreferencesDataStore(context: Context) {
     val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
     val INSTALLATION_ID = stringPreferencesKey("license_installation_id")
     val LICENSE_PHONE = stringPreferencesKey("license_phone")
+    val LICENSE_KEY = stringPreferencesKey("license_key")
     val LICENSE_STATUS = stringPreferencesKey("license_status")
     val LICENSE_EXPIRES_AT = longPreferencesKey("license_expires_at")
     val LAST_LICENSE_VALIDATION = longPreferencesKey("last_license_validation")
@@ -79,6 +81,7 @@ class AppPreferencesDataStore(context: Context) {
       lastBackupTimestamp = prefs[Keys.LAST_BACKUP_TIMESTAMP] ?: 0L,
       installationId = prefs[Keys.INSTALLATION_ID] ?: "",
       licensePhone = prefs[Keys.LICENSE_PHONE] ?: "",
+      licenseKey = prefs[Keys.LICENSE_KEY] ?: "",
       licenseStatus = prefs[Keys.LICENSE_STATUS] ?: "",
       licenseExpiresAt = prefs[Keys.LICENSE_EXPIRES_AT] ?: 0L,
       lastLicenseValidation = prefs[Keys.LAST_LICENSE_VALIDATION] ?: 0L,
@@ -116,9 +119,9 @@ class AppPreferencesDataStore(context: Context) {
   suspend fun currentInstallationId(): String =
     dataStore.data.map { it[Keys.INSTALLATION_ID] ?: "" }.first()
 
-  suspend fun saveLicenseResult(phone: String, status: String, expiresAt: Long, validatedAt: Long) {
+  suspend fun saveLicenseResult(licenseKey: String, status: String, expiresAt: Long, validatedAt: Long) {
     dataStore.edit { prefs ->
-      prefs[Keys.LICENSE_PHONE] = phone
+      prefs[Keys.LICENSE_KEY] = licenseKey
       prefs[Keys.LICENSE_STATUS] = status
       prefs[Keys.LICENSE_EXPIRES_AT] = expiresAt
       prefs[Keys.LAST_LICENSE_VALIDATION] = validatedAt
@@ -129,6 +132,7 @@ class AppPreferencesDataStore(context: Context) {
     UserPreferences(
       installationId = prefs[Keys.INSTALLATION_ID] ?: "",
       licensePhone = prefs[Keys.LICENSE_PHONE] ?: "",
+      licenseKey = prefs[Keys.LICENSE_KEY] ?: "",
       licenseStatus = prefs[Keys.LICENSE_STATUS] ?: "",
       licenseExpiresAt = prefs[Keys.LICENSE_EXPIRES_AT] ?: 0L,
       lastLicenseValidation = prefs[Keys.LAST_LICENSE_VALIDATION] ?: 0L,
