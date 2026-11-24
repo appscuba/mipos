@@ -100,6 +100,7 @@ fun FinanceScreen(
   var showExpenseForm by remember { mutableStateOf(false) }
   var showCategoriesDialog by remember { mutableStateOf(false) }
   var showAdjustmentDialog by remember { mutableStateOf(false) }
+  var showSalaryDialog by remember { mutableStateOf(false) }
   var selectedExpense by remember { mutableStateOf<ExpenseWithCategory?>(null) }
 
   LaunchedEffect(state.feedbackMessage) {
@@ -268,6 +269,14 @@ fun FinanceScreen(
                   Text("Ingreso / Retiro")
                 }
                 OutlinedButton(
+                  onClick = { showSalaryDialog = true },
+                  modifier = Modifier.height(48.dp).testTag("finance_salary_button"),
+                ) {
+                  Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Spacer(Modifier.width(6.dp))
+                  Text("Calcular salario")
+                }
+                OutlinedButton(
                   onClick = { showCategoriesDialog = true },
                   modifier = Modifier.height(48.dp).testTag("finance_categories_button"),
                 ) {
@@ -372,6 +381,30 @@ fun FinanceScreen(
     )
   }
 
+  if (showSalaryDialog) {
+    SalaryExpenseDialog(
+      categories = state.expenseCategories,
+      primaryCurrency = state.primaryCurrency,
+      hasOpenCashSession = state.openCashSession != null,
+      isSaving = state.isSaving,
+      onSave = { description, amount, paidFromDrawer ->
+        val salaryCategory = state.expenseCategories.firstOrNull { it.name.equals("Salarios", ignoreCase = true) }
+        if (salaryCategory != null) {
+          viewModel.recordExpense(
+            expenseCategoryId = salaryCategory.id,
+            description = description,
+            currencyCode = state.primaryCurrency,
+            originalAmount = amount,
+            exchangeRateToBase = BigDecimal.ONE,
+            paymentMethod = if (paidFromDrawer) "CASH" else "TRANSFER",
+            paidFromCashDrawer = paidFromDrawer,
+          ) { showSalaryDialog = false }
+        }
+      },
+      onDismiss = { showSalaryDialog = false },
+    )
+  }
+
   if (showCategoriesDialog) {
     ExpenseCategoriesDialog(
       categories = state.expenseCategories,
@@ -417,6 +450,86 @@ fun FinanceScreen(
       onDismiss = { selectedExpense = null },
     )
   }
+}
+
+@Composable
+private fun SalaryExpenseDialog(
+  categories: List<ExpenseCategoryEntity>,
+  primaryCurrency: String,
+  hasOpenCashSession: Boolean,
+  isSaving: Boolean,
+  onSave: (description: String, amount: BigDecimal, paidFromCashDrawer: Boolean) -> Unit,
+  onDismiss: () -> Unit,
+) {
+  val hasSalaryCategory = categories.any { it.name.equals("Salarios", ignoreCase = true) }
+  var employeeName by remember { mutableStateOf("") }
+  var mode by remember { mutableStateOf("FIXED") }
+  var fixedAmount by remember { mutableStateOf("") }
+  var salesAmount by remember { mutableStateOf("") }
+  var percent by remember { mutableStateOf("") }
+  var dailyRate by remember { mutableStateOf("") }
+  var daysWorked by remember { mutableStateOf("") }
+  var paidFromDrawer by remember { mutableStateOf(hasOpenCashSession) }
+
+  val amount = when (mode) {
+    "PERCENT" -> {
+      val sales = MoneyMath.parseMoneyOrNull(salesAmount) ?: BigDecimal.ZERO
+      val pct = MoneyMath.parseDecimalOrNull(percent) ?: BigDecimal.ZERO
+      if (sales > BigDecimal.ZERO && pct > BigDecimal.ZERO) sales.multiply(pct).divide(BigDecimal("100"), MoneyMath.MONEY_SCALE, java.math.RoundingMode.HALF_UP) else BigDecimal.ZERO
+    }
+    "DAILY" -> {
+      val rate = MoneyMath.parseMoneyOrNull(dailyRate) ?: BigDecimal.ZERO
+      val days = MoneyMath.parseDecimalOrNull(daysWorked) ?: BigDecimal.ZERO
+      if (rate > BigDecimal.ZERO && days > BigDecimal.ZERO) rate.multiply(days).setScale(MoneyMath.MONEY_SCALE, java.math.RoundingMode.HALF_UP) else BigDecimal.ZERO
+    }
+    else -> MoneyMath.parseMoneyOrNull(fixedAmount) ?: BigDecimal.ZERO
+  }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Calcular y registrar salario") },
+    text = {
+      Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedTextField(value = employeeName, onValueChange = { employeeName = it }, label = { Text("Nombre del trabajador") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("salary_employee_input"))
+        Text("Modalidad de pago", style = MaterialTheme.typography.labelMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+          listOf("FIXED" to "Fijo", "PERCENT" to "% de ventas", "DAILY" to "Por jornada").forEach { (key, label) ->
+            FilterChip(selected = mode == key, onClick = { mode = key }, label = { Text(label) })
+          }
+        }
+        when (mode) {
+          "PERCENT" -> {
+            OutlinedTextField(value = salesAmount, onValueChange = { salesAmount = it }, label = { Text("Ventas base ($primaryCurrency)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = percent, onValueChange = { percent = it }, label = { Text("Porcentaje (%)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+          }
+          "DAILY" -> {
+            OutlinedTextField(value = dailyRate, onValueChange = { dailyRate = it }, label = { Text("Pago por jornada ($primaryCurrency)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = daysWorked, onValueChange = { daysWorked = it }, label = { Text("Jornadas trabajadas") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+          }
+          else -> OutlinedTextField(value = fixedAmount, onValueChange = { fixedAmount = it }, label = { Text("Salario fijo ($primaryCurrency)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        HorizontalDivider()
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          Text("Total a registrar", fontWeight = FontWeight.SemiBold)
+          Text(MoneyMath.format(amount, primaryCurrency), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Descontar de caja", style = MaterialTheme.typography.bodyMedium)
+            Text(if (hasOpenCashSession) "El pago reducirá el efectivo esperado" else "Sin caja abierta: registra como transferencia/otro medio", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          }
+          Switch(checked = paidFromDrawer, onCheckedChange = { paidFromDrawer = it }, enabled = hasOpenCashSession)
+        }
+        if (!hasSalaryCategory) Text("No existe la categoría Salarios. Créala en Categorías antes de registrar la nómina.", color = MaterialTheme.colorScheme.error)
+      }
+    },
+    confirmButton = {
+      Button(onClick = { onSave("Salario - " + employeeName.trim(), amount, paidFromDrawer) }, enabled = !isSaving && hasSalaryCategory && employeeName.isNotBlank() && amount > BigDecimal.ZERO && (!paidFromDrawer || hasOpenCashSession)) {
+        Text(if (isSaving) "Guardando..." else "Registrar gasto")
+      }
+    },
+    dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+  )
 }
 
 @Composable
