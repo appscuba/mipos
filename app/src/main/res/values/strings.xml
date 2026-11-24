@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Gestor Comercial</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_history">Historial</string>
+    <string name="nav_pos">Tienda/POS</string>
+    <string name="nav_inventory">Inventario</string>
+    <string name="nav_finance">Finanzas</string>
+    <string name="drawer_purchases">Compras y Entradas</string>
+    <string name="drawer_suppliers">Proveedores</string>
+    <string name="drawer_customers">Clientes y Deudas</string>
+    <string name="drawer_cash_register">Caja y Cierre Diario</string>
+    <string name="drawer_currencies">Monedas y Tasas</string>
+    <string name="drawer_reports">Reportes y Ganancias</string>
+    <string name="drawer_users_audit">Usuarios y Auditoría</string>
+    <string name="drawer_backups">Respaldos</string>
+    <string name="drawer_settings">Configuración</string>
+</resources>

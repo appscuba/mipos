@@ -1,0 +1,6 @@
+{
+  "name": "Gestor Comercial",
+  "description": "Sistema comercial offline para gestión de inventario por peso y unidades, POS, compras, costos, finanzas, caja y respaldos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

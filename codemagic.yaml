@@ -1,0 +1,52 @@
+workflows:
+  android-debug-and-tests:
+    name: Gestor Comercial - Pruebas y APK Debug
+    max_build_duration: 60
+    environment:
+      java: 21
+    scripts:
+      - name: Preparar Gradle Wrapper y Keystore Debug
+        script: |
+          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 9.3.1
+          fi
+          chmod +x gradlew
+      - name: Ejecutar pruebas unitarias y Robolectric
+        script: |
+          ./gradlew :app:testDebugUnitTest
+      - name: Compilar APK Debug
+        script: |
+          ./gradlew :app:assembleDebug
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/reports/tests/**/*
+
+  android-release:
+    name: Gestor Comercial - APK/AAB Release
+    max_build_duration: 60
+    environment:
+      java: 21
+    scripts:
+      - name: Preparar entorno de firma y compilación
+        script: |
+          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 9.3.1
+          fi
+          chmod +x gradlew
+          if [ -n "$CM_KEYSTORE_PATH" ]; then
+            export KEYSTORE_PATH="$CM_KEYSTORE_PATH"
+            export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
+            export KEY_PASSWORD="$CM_KEY_PASSWORD"
+          fi
+      - name: Compilar APK y AAB Release
+        script: |
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:bundleRelease
+    artifacts:
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/bundle/release/*.aab
