@@ -308,30 +308,44 @@ fun PurchaseFormDialog(
           }
 
           BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val compactWidth = maxWidth < 440.dp
-            val fieldModifier = if (compactWidth) Modifier.fillMaxWidth() else Modifier.weight(1f)
-            val fields: @Composable () -> Unit = {
-              OutlinedTextField(
-                value = invoiceNumber,
-                onValueChange = { invoiceNumber = it },
-                label = { Text("Nro. factura / nota") },
-                singleLine = true,
-                modifier = fieldModifier.testTag("purchase_invoice_input"),
-              )
-              OutlinedTextField(
-                value = exchangeRateText,
-                onValueChange = { exchangeRateText = it },
-                label = { Text("Tasa a $primaryCurrency") },
-                singleLine = true,
-                enabled = selectedCurrencyCode != primaryCurrency,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = fieldModifier.testTag("purchase_exchange_rate_input"),
-              )
-            }
-            if (compactWidth) {
-              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { fields() }
+            if (maxWidth < 440.dp) {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                  value = invoiceNumber,
+                  onValueChange = { invoiceNumber = it },
+                  label = { Text("Nro. factura / nota") },
+                  singleLine = true,
+                  modifier = Modifier.fillMaxWidth().testTag("purchase_invoice_input"),
+                )
+                OutlinedTextField(
+                  value = exchangeRateText,
+                  onValueChange = { exchangeRateText = it },
+                  label = { Text("Tasa a $primaryCurrency") },
+                  singleLine = true,
+                  enabled = selectedCurrencyCode != primaryCurrency,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.fillMaxWidth().testTag("purchase_exchange_rate_input"),
+                )
+              }
             } else {
-              Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { fields() }
+              Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                  value = invoiceNumber,
+                  onValueChange = { invoiceNumber = it },
+                  label = { Text("Nro. factura / nota") },
+                  singleLine = true,
+                  modifier = Modifier.weight(1f).testTag("purchase_invoice_input"),
+                )
+                OutlinedTextField(
+                  value = exchangeRateText,
+                  onValueChange = { exchangeRateText = it },
+                  label = { Text("Tasa a $primaryCurrency") },
+                  singleLine = true,
+                  enabled = selectedCurrencyCode != primaryCurrency,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(1f).testTag("purchase_exchange_rate_input"),
+                )
+              }
             }
           }
 
