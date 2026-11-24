@@ -78,6 +78,8 @@ import com.example.ui.theme.ThemeMode
 fun BusinessSettingsScreen(
   viewModel: BusinessSettingsViewModel,
   onNavigateToBackups: () -> Unit,
+  onActivateLicense: () -> Unit = {},
+  planSummary: String = "Prueba gratuita",
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -98,6 +100,18 @@ fun BusinessSettingsScreen(
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+      Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onActivateLicense).testTag("settings_license_card"),
+      ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("Plan de Stock+", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+          Text(planSummary, style = MaterialTheme.typography.bodyMedium)
+          Button(onClick = onActivateLicense) { Text("Activar licencia") }
+        }
+      }
+
       Card(
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
