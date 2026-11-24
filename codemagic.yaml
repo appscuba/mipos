@@ -7,9 +7,25 @@ workflows:
     scripts:
       - name: Preparar Gradle Wrapper y Keystore Debug
         script: |
-          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+          set -e
+          if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null \
+              || base64 -D -i debug.keystore.base64 -o debug.keystore 2>/dev/null \
+              || python3 -c "import base64, pathlib; pathlib.Path('debug.keystore').write_bytes(base64.b64decode(pathlib.Path('debug.keystore.base64').read_text().strip()))" \
+              || rm -f debug.keystore
           fi
+          if [ ! -s debug.keystore ]; then
+            keytool -genkeypair -noprompt \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          ls -lh debug.keystore
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 9.3.1
           fi
@@ -32,20 +48,40 @@ workflows:
     scripts:
       - name: Preparar entorno de firma y compilación
         script: |
-          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+          set -e
+          if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null \
+              || base64 -D -i debug.keystore.base64 -o debug.keystore 2>/dev/null \
+              || python3 -c "import base64, pathlib; pathlib.Path('debug.keystore').write_bytes(base64.b64decode(pathlib.Path('debug.keystore.base64').read_text().strip()))" \
+              || rm -f debug.keystore
+          fi
+          if [ ! -s debug.keystore ]; then
+            keytool -genkeypair -noprompt \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
           fi
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 9.3.1
           fi
           chmod +x gradlew
-          if [ -n "$CM_KEYSTORE_PATH" ]; then
+          if [ -n "$CM_KEYSTORE_PATH" ] && [ -n "$CM_ENV" ]; then
+            echo "KEYSTORE_PATH=$CM_KEYSTORE_PATH" >> "$CM_ENV"
+            echo "STORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> "$CM_ENV"
+            echo "KEY_PASSWORD=$CM_KEY_PASSWORD" >> "$CM_ENV"
+          fi
+      - name: Compilar APK y AAB Release
+        script: |
+          if [ -z "$KEYSTORE_PATH" ] && [ -n "$CM_KEYSTORE_PATH" ]; then
             export KEYSTORE_PATH="$CM_KEYSTORE_PATH"
             export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
             export KEY_PASSWORD="$CM_KEY_PASSWORD"
           fi
-      - name: Compilar APK y AAB Release
-        script: |
           ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:bundleRelease
     artifacts:
       - app/build/outputs/apk/release/*.apk
