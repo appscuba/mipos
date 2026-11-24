@@ -38,7 +38,7 @@ class LicenseRepository(
   suspend fun activate(phone: String): LicenseValidationResult {
     val id = preferences.currentInstallationId()
     val fingerprint = preferences.deviceIdentityFingerprint()
-    val result = validator.validate(id, phone, fingerprint)
+    val result = validator.validate(id, phone)
     if (result.status != "unavailable") {
       preferences.saveLicenseResult(phone, result.status, result.expiresAt,
         if (result.status == "active") System.currentTimeMillis() else 0L)
@@ -53,7 +53,7 @@ class LicenseRepository(
     if (prefs.lastLicenseValidation > 0L &&
       now - prefs.lastLicenseValidation < PlanLimits.REVALIDATE_AFTER_HOURS * 3_600_000L) return
     val fingerprint = preferences.deviceIdentityFingerprint()
-    val result = validator.validate(prefs.installationId, prefs.licensePhone, fingerprint)
+    val result = validator.validate(prefs.installationId, prefs.licensePhone)
     if (result.status == "active") {
       preferences.saveLicenseResult(prefs.licensePhone, result.status, result.expiresAt, now)
     } else if (result.status == "revoked" || result.status == "expired" || result.status == "invalid") {
