@@ -111,6 +111,7 @@ class Phase8BackupAndRestoreTest {
       ),
     )
 
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Caja de respaldo")
     saleRepo.confirmSale(
       ConfirmSaleRequest(
         businessId = businessId,
