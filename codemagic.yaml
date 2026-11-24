@@ -89,20 +89,62 @@ workflows:
             gradle wrapper --gradle-version 9.3.1
           fi
           chmod +x gradlew
-          if [ -n "$CM_KEYSTORE_PATH" ] && [ -n "$CM_ENV" ]; then
-            echo "KEYSTORE_PATH=$CM_KEYSTORE_PATH" >> "$CM_ENV"
-            echo "STORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> "$CM_ENV"
-            echo "KEY_PASSWORD=$CM_KEY_PASSWORD" >> "$CM_ENV"
+
+          if [ -n "$CM_KEYSTORE_PATH" ] && [ -s "$CM_KEYSTORE_PATH" ]; then
+            cp "$CM_KEYSTORE_PATH" my-upload-key.jks
+            RELEASE_STORE_PASS="${CM_KEYSTORE_PASSWORD:-${STORE_PASSWORD:-stockplus2026}}"
+            RELEASE_KEY_PASS="${CM_KEY_PASSWORD:-${KEY_PASSWORD:-$RELEASE_STORE_PASS}}"
+          elif [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks 2>/dev/null \
+              || python3 -c "import base64, os, pathlib; pathlib.Path('my-upload-key.jks').write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'].strip()))"
+            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
+            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
+          elif [ -s my-upload-key.jks ]; then
+            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
+            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
+          else
+            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
+            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
+            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
+            "$KEYTOOL_BIN" -genkeypair -noprompt \
+              -keystore my-upload-key.jks \
+              -storepass "$RELEASE_STORE_PASS" \
+              -alias upload \
+              -keypass "$RELEASE_KEY_PASS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Stock+,O=PedritoTech,C=CU"
+          fi
+          ls -lh my-upload-key.jks
+          if [ -n "$CM_ENV" ]; then
+            echo "KEYSTORE_PATH=${CM_BUILD_DIR:-$(pwd)}/my-upload-key.jks" >> "$CM_ENV"
+            echo "STORE_PASSWORD=$RELEASE_STORE_PASS" >> "$CM_ENV"
+            echo "KEY_PASSWORD=$RELEASE_KEY_PASS" >> "$CM_ENV"
           fi
       - name: Compilar APK y AAB Release
         script: |
+          set -e
           cd "${CM_BUILD_DIR:-.}"
-          if [ -z "$KEYSTORE_PATH" ] && [ -n "$CM_KEYSTORE_PATH" ]; then
-            export KEYSTORE_PATH="$CM_KEYSTORE_PATH"
-            export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
-            export KEY_PASSWORD="$CM_KEY_PASSWORD"
+          if [ ! -s my-upload-key.jks ]; then
+            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
+            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
+            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
+            "$KEYTOOL_BIN" -genkeypair -noprompt \
+              -keystore my-upload-key.jks \
+              -storepass "$RELEASE_STORE_PASS" \
+              -alias upload \
+              -keypass "$RELEASE_KEY_PASS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Stock+,O=PedritoTech,C=CU"
           fi
+          export KEYSTORE_PATH="${KEYSTORE_PATH:-${CM_BUILD_DIR:-$(pwd)}/my-upload-key.jks}"
+          export STORE_PASSWORD="${STORE_PASSWORD:-${CM_KEYSTORE_PASSWORD:-stockplus2026}}"
+          export KEY_PASSWORD="${KEY_PASSWORD:-${CM_KEY_PASSWORD:-$STORE_PASSWORD}}"
           ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:bundleRelease
     artifacts:
       - app/build/outputs/apk/release/*.apk
       - app/build/outputs/bundle/release/*.aab
+      - app/build/reports/tests/**/*

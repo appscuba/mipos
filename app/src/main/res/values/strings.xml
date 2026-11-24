@@ -14,4 +14,10 @@
     <string name="drawer_users_audit">Usuarios y Auditoría</string>
     <string name="drawer_backups">Respaldos</string>
     <string name="drawer_settings">Configuración</string>
+    <string name="support_title">Soporte y Acerca de</string>
+    <string name="support_website">PedritoTech.cu</string>
+    <string name="support_email">appscuba@gmail.com</string>
+    <string name="support_telegram">\@pedritotech</string>
+    <string name="support_whatsapp">+5353274074</string>
+    <string name="copyright_notice">© 2026 Pedro Martínez Figueredo. Todos los derechos reservados.</string>
 </resources>

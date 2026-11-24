@@ -291,7 +291,7 @@ class ExampleRobolectricTest {
     // 5. Ir a Historial y verificar la venta con ganancia bruta 75.00 CUP
     composeTestRule.onNodeWithTag("nav_tab_history").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule.onAllNodesWithTag("history_list").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithText("V-00001").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("history_list").performScrollToNode(hasText("V-00001"))
     composeTestRule.onNodeWithText("V-00001").assertIsDisplayed()
@@ -610,9 +610,15 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithTag("drawer_settings").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("drawer_settings").performScrollTo().performClick()
+    // Verificar soporte y derechos de autor en Ajustes
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("settings_reset_system_button").fetchSemanticsNodes().isNotEmpty()
     }
+    composeTestRule.onNodeWithTag("support_website_row").performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag("support_email_row").performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag("support_telegram_row").performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag("support_whatsapp_row").performScrollTo().assertIsDisplayed()
+    composeTestRule.onNodeWithTag("support_copyright_text").performScrollTo().assertIsDisplayed()
     composeTestRule.onNodeWithTag("settings_reset_system_button").performScrollTo().performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("settings_reset_confirm_button").fetchSemanticsNodes().isNotEmpty()

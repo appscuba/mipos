@@ -1,5 +1,6 @@
 package com.example.ui.settings
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -27,9 +28,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,6 +45,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -53,7 +61,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +78,7 @@ fun BusinessSettingsScreen(
   viewModel: BusinessSettingsViewModel,
   modifier: Modifier = Modifier,
 ) {
+  val context = LocalContext.current
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   var showResetWarningDialog by remember { mutableStateOf(false) }
   val picker = rememberLauncherForActivityResult(
@@ -271,6 +282,75 @@ fun BusinessSettingsScreen(
 
       Card(
         shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.testTag("settings_support_card"),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Icon(
+              Icons.Filled.SupportAgent,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+              text = "Soporte y Acerca de Stock+",
+              style = MaterialTheme.typography.titleMedium,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+
+          SupportContactRow(
+            icon = Icons.Filled.Language,
+            label = "Sitio web",
+            value = "PedritoTech.cu",
+            onClick = { openExternalUri(context, "https://pedritotech.cu") },
+            modifier = Modifier.testTag("support_website_row"),
+          )
+          SupportContactRow(
+            icon = Icons.Filled.Email,
+            label = "Correo electrónico",
+            value = "appscuba@gmail.com",
+            onClick = {
+              openExternalUri(
+                context,
+                "mailto:appscuba@gmail.com?subject=${Uri.encode("Soporte Stock+")}",
+              )
+            },
+            modifier = Modifier.testTag("support_email_row"),
+          )
+          SupportContactRow(
+            icon = Icons.AutoMirrored.Filled.Send,
+            label = "Telegram",
+            value = "@pedritotech",
+            onClick = { openExternalUri(context, "https://t.me/pedritotech") },
+            modifier = Modifier.testTag("support_telegram_row"),
+          )
+          SupportContactRow(
+            icon = Icons.Filled.Chat,
+            label = "WhatsApp",
+            value = "+5353274074",
+            onClick = { openExternalUri(context, "https://wa.me/5353274074") },
+            modifier = Modifier.testTag("support_whatsapp_row"),
+          )
+
+          HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+          Text(
+            text = "© 2026 Pedro Martínez Figueredo. Todos los derechos reservados.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("support_copyright_text"),
+          )
+        }
+      }
+
+      Card(
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
         ),
@@ -385,5 +465,51 @@ fun BusinessSettingsScreen(
         }
       },
     )
+  }
+}
+
+@Composable
+private fun SupportContactRow(
+  icon: ImageVector,
+  label: String,
+  value: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Row(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(10.dp))
+      .clickable(onClick = onClick)
+      .padding(horizontal = 8.dp, vertical = 10.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.SpaceBetween,
+  ) {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      modifier = Modifier.weight(1f),
+    ) {
+      Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+      Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+      }
+    }
+    Icon(
+      Icons.AutoMirrored.Filled.OpenInNew,
+      contentDescription = "Abrir $label",
+      tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = Modifier.size(16.dp),
+    )
+  }
+}
+
+private fun openExternalUri(context: android.content.Context, url: String) {
+  runCatching {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
   }
 }
