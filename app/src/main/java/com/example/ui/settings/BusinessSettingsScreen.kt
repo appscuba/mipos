@@ -32,7 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Language
@@ -358,7 +358,7 @@ fun BusinessSettingsScreen(
             modifier = Modifier.testTag("support_telegram_row"),
           )
           SupportContactRow(
-            icon = Icons.Filled.Chat,
+            icon = Icons.AutoMirrored.Filled.Chat,
             label = "WhatsApp",
             value = "+5353274074",
             onClick = { openExternalUri(context, "https://wa.me/5353274074") },
