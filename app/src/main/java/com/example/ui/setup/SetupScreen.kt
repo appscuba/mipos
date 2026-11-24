@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -69,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -179,12 +181,25 @@ fun SetupScreen(
           shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .defaultMinSize(minHeight = 56.dp)
             .testTag("setup_restore_backup_button"),
+          contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 12.dp),
         ) {
-          Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(Modifier.width(8.dp))
-          Text("¿Ya tienes copia de seguridad? Restaurar (.gcbk)")
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+              text = "¿Ya tienes copia de seguridad? Restaurar (.gcbk)",
+              modifier = Modifier.weight(1f),
+              textAlign = TextAlign.Center,
+              style = MaterialTheme.typography.labelLarge,
+              maxLines = 3,
+            )
+          }
         }
 
         // Theme quick choice
