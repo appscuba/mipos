@@ -3,6 +3,7 @@ package com.example.data.license
 import com.example.data.preferences.AppPreferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.security.MessageDigest
 import java.security.SecureRandom
 
 class LicenseRepository(
@@ -17,15 +18,22 @@ class LicenseRepository(
   suspend fun initialize() {
     val now = System.currentTimeMillis()
     preferences.ensureLicenseIdentity(
-      installationId = generateInstallationId(),
+      installationId = generateInstallationId(preferences.deviceIdentitySeed()),
       firstLaunchAt = now,
     )
   }
 
-  private fun generateInstallationId(): String {
-    // 128 bits aleatorios: evita los IDs cortos de 48 bits de versiones previas.
-    val bytes = ByteArray(16)
-    SecureRandom().nextBytes(bytes)
+  private fun generateInstallationId(deviceSeed: String): String {
+    // El hash de ANDROID_ID mantiene el vínculo en reinstalaciones del mismo
+    // dispositivo. No depende de Google Play Services. Fallback aleatorio
+    // para dispositivos que no proporcionen un ANDROID_ID válido.
+    val bytes = if (deviceSeed.isNotBlank()) {
+      MessageDigest.getInstance("SHA-256")
+        .digest(deviceSeed.toByteArray(Charsets.UTF_8))
+        .copyOfRange(0, 16)
+    } else {
+      ByteArray(16).also { SecureRandom().nextBytes(it) }
+    }
     val hex = bytes.joinToString("") { byte ->
       (byte.toInt() and 0xff).toString(16).padStart(2, '0').uppercase()
     }

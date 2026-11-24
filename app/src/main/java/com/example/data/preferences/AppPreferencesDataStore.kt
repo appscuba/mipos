@@ -1,6 +1,7 @@
 package com.example.data.preferences
 
 import android.content.Context
+import android.provider.Settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -29,9 +30,24 @@ data class UserPreferences(
 )
 
 class AppPreferencesDataStore(context: Context) {
+  private val appContext = context.applicationContext
   private val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-    produceFile = { context.applicationContext.preferencesDataStoreFile("gestor_comercial_prefs") },
+    produceFile = { appContext.preferencesDataStoreFile("gestor_comercial_prefs") },
   )
+
+  /**
+   * Identificador estable de Android para esta app, firma, usuario y dispositivo.
+   * No depende de Google Play Services y permanece igual tras reinstalar la app
+   * en el mismo dispositivo (Android 8+).
+   */
+  fun deviceIdentitySeed(): String {
+    val androidId = Settings.Secure.getString(
+      appContext.contentResolver,
+      Settings.Secure.ANDROID_ID,
+    ).orEmpty()
+    if (androidId.isBlank() || androidId == "9774d56d682e549c") return ""
+    return "${appContext.packageName}:$androidId"
+  }
 
   private object Keys {
     val THEME_MODE = stringPreferencesKey("theme_mode")
