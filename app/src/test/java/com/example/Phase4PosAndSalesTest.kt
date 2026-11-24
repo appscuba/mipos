@@ -48,7 +48,7 @@ class Phase4PosAndSalesTest {
   private var businessId: Long = 0L
 
   @Before
-  fun setUp() = runBlocking {
+  fun setUp(): Unit = runBlocking {
     context = ApplicationProvider.getApplicationContext()
     db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
       .allowMainThreadQueries()
