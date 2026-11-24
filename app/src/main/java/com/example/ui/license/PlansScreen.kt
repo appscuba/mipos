@@ -128,7 +128,7 @@ fun PlansScreen(
             }
             Text(plan.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              Text("$${plan.monthlyPrice}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+              Text("${plan.monthlyPrice} USD", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
               Text("USD / mes", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 5.dp))
             }
             Text("Anual: $annualTotal USD (20% de descuento)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
