@@ -114,7 +114,7 @@ workflows:
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
-              -dname "CN=Stock+,O=PedritoTech,C=CU"
+              -dname "CN=StockPlus,O=PedritoTech,C=CU"
           fi
           ls -lh my-upload-key.jks
           if [ -n "$CM_ENV" ]; then
@@ -138,7 +138,7 @@ workflows:
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
-              -dname "CN=Stock+,O=PedritoTech,C=CU"
+              -dname "CN=StockPlus,O=PedritoTech,C=CU"
           fi
           export KEYSTORE_PATH="${KEYSTORE_PATH:-${CM_BUILD_DIR:-$(pwd)}/my-upload-key.jks}"
           export STORE_PASSWORD="${STORE_PASSWORD:-${CM_KEYSTORE_PASSWORD:-stockplus2026}}"

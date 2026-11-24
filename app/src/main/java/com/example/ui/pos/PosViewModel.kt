@@ -140,8 +140,7 @@ class PosViewModel(
         val matchesCat = d.selectedCategoryId == null || item.product.categoryId == d.selectedCategoryId
         val matchesQuery = q.isEmpty() ||
           item.product.name.lowercase().contains(q) ||
-          item.product.sku.lowercase().contains(q) ||
-          item.product.barcode.lowercase().contains(q)
+          item.product.sku.lowercase().contains(q)
         matchesCat && matchesQuery
       }
 

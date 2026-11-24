@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "7c056f613bf8bec4cabc459e63b396fd",
+    "identityHash": "24f2b8ac8147778a0b09858b7f128cf4",
     "entities": [
       {
         "tableName": "businesses",
@@ -757,7 +757,7 @@
       },
       {
         "tableName": "products",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `businessId` INTEGER NOT NULL, `categoryId` INTEGER, `name` TEXT NOT NULL, `sku` TEXT NOT NULL, `barcode` TEXT NOT NULL, `modality` TEXT NOT NULL, `baseUnit` TEXT NOT NULL, `stockBaseQty` TEXT NOT NULL, `avgCostPerSaleUnit` TEXT NOT NULL, `salePrice` TEXT NOT NULL, `defaultSaleUnit` TEXT NOT NULL, `lowStockThresholdBase` TEXT NOT NULL, `trackInventory` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`businessId`) REFERENCES `businesses`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `businessId` INTEGER NOT NULL, `categoryId` INTEGER, `name` TEXT NOT NULL, `sku` TEXT NOT NULL, `modality` TEXT NOT NULL, `baseUnit` TEXT NOT NULL, `stockBaseQty` TEXT NOT NULL, `avgCostPerSaleUnit` TEXT NOT NULL, `salePrice` TEXT NOT NULL, `defaultSaleUnit` TEXT NOT NULL, `lowStockThresholdBase` TEXT NOT NULL, `trackInventory` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, FOREIGN KEY(`businessId`) REFERENCES `businesses`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -785,12 +785,6 @@
           {
             "fieldPath": "sku",
             "columnName": "sku",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "barcode",
-            "columnName": "barcode",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -3100,7 +3094,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7c056f613bf8bec4cabc459e63b396fd')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '24f2b8ac8147778a0b09858b7f128cf4')"
     ]
   }
 }

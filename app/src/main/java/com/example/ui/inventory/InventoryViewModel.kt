@@ -94,8 +94,7 @@ class InventoryViewModel(
     val filtered = overview.items.filter { item ->
       val matchesSearch = q.isEmpty() ||
         item.product.name.lowercase().contains(q) ||
-        item.product.sku.lowercase().contains(q) ||
-        item.product.barcode.lowercase().contains(q)
+        item.product.sku.lowercase().contains(q)
       val matchesCategory = currentFilters.selectedCategoryId == null ||
         item.product.categoryId == currentFilters.selectedCategoryId
       val matchesModality = currentFilters.selectedModality == null ||

@@ -126,7 +126,6 @@ private val DRAWER_ENTRIES = listOf(
   DrawerMenuEntry("Monedas y Tasas", Icons.Filled.CurrencyExchange, AppDestination.Currencies, "drawer_currencies", AppPermissions.SETTINGS_MANAGE),
   DrawerMenuEntry("Reportes y Ganancias", Icons.Filled.Assessment, AppDestination.Reports, "drawer_reports", AppPermissions.REPORTS_COST_PROFIT),
   DrawerMenuEntry("Usuarios y Auditoría", Icons.Filled.AdminPanelSettings, AppDestination.UsersAudit, "drawer_users_audit"),
-  DrawerMenuEntry("Respaldos", Icons.Filled.Backup, AppDestination.Backups, "drawer_backups", AppPermissions.BACKUPS_MANAGE),
   DrawerMenuEntry("Configuración", Icons.Filled.Settings, AppDestination.BusinessSettings, "drawer_settings", AppPermissions.SETTINGS_MANAGE),
 )
 
@@ -558,7 +557,10 @@ fun MainAppShell(
                   preferences = container.preferences,
                 ),
               )
-              BusinessSettingsScreen(viewModel = settingsVm)
+              BusinessSettingsScreen(
+                viewModel = settingsVm,
+                onNavigateToBackups = { navController.navigate(AppDestination.Backups) },
+              )
             }
           }
         }

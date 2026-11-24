@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Email
@@ -76,6 +77,7 @@ import com.example.ui.theme.ThemeMode
 @Composable
 fun BusinessSettingsScreen(
   viewModel: BusinessSettingsViewModel,
+  onNavigateToBackups: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -124,6 +126,30 @@ fun BusinessSettingsScreen(
               label = { Text("Sistema") },
             )
           }
+        }
+      }
+
+      Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.clickable(onClick = onNavigateToBackups).testTag("settings_backups_card"),
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth().padding(16.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+          ) {
+            Icon(Icons.Filled.Backup, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column {
+              Text("Respaldos y Seguridad de Datos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+              Text("Exportar / Restaurar respaldo cifrado (.gcbk)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+          }
+          Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
       }
 

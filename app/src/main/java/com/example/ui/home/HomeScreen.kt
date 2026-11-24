@@ -237,6 +237,7 @@ fun HomeScreen(
                 Text(
                   text = "${rate.currencyCode} — ${rate.currencyName}",
                   style = MaterialTheme.typography.bodyMedium,
+                  modifier = Modifier.weight(1f),
                 )
                 Text(
                   text = if (rate.isBaseCurrency) {

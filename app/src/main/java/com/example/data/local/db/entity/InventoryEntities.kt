@@ -59,7 +59,6 @@ data class ProductEntity(
   val categoryId: Long? = null,
   val name: String,
   val sku: String = "",
-  val barcode: String = "",
   /** WEIGHT (internal grams), UNIT (internal units), PRESENTATION (package-based internal units) */
   val modality: String,
   /** Internal base unit label: "g" or "u" */

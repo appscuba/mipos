@@ -76,7 +76,6 @@ fun ProductFormDialog(
 
   var name by remember { mutableStateOf(editingItem?.product?.name.orEmpty()) }
   var sku by remember { mutableStateOf(editingItem?.product?.sku.orEmpty()) }
-  var barcode by remember { mutableStateOf(editingItem?.product?.barcode.orEmpty()) }
   var selectedCategoryId by remember { mutableStateOf(editingItem?.product?.categoryId ?: categories.firstOrNull()?.id) }
   var modality by remember { mutableStateOf(initialModality) }
   var defaultSaleUnit by remember {
@@ -190,7 +189,7 @@ fun ProductFormDialog(
         // Scrollable Body
         Column(
           modifier = Modifier
-            .weight(1f, fill = false)
+            .weight(1f)
             .verticalScroll(rememberScrollState()),
           verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -206,25 +205,13 @@ fun ProductFormDialog(
             modifier = Modifier.fillMaxWidth().testTag("product_name_input"),
           )
 
-          Row(
+          OutlinedTextField(
+            value = sku,
+            onValueChange = { sku = it },
+            label = { Text("SKU", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-          ) {
-            OutlinedTextField(
-              value = sku,
-              onValueChange = { sku = it },
-              label = { Text("SKU", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-              singleLine = true,
-              modifier = Modifier.weight(1f),
-            )
-            OutlinedTextField(
-              value = barcode,
-              onValueChange = { barcode = it },
-              label = { Text("Cód. Barras", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-              singleLine = true,
-              modifier = Modifier.weight(1f),
-            )
-          }
+          )
 
           if (categories.isNotEmpty()) {
             Text("Categoría", style = MaterialTheme.typography.labelLarge)
@@ -543,7 +530,6 @@ fun ProductFormDialog(
                   categoryId = selectedCategoryId,
                   name = name.trim(),
                   sku = sku.trim(),
-                  barcode = barcode.trim(),
                   modality = modality,
                   defaultSaleUnit = defaultSaleUnit,
                   salePrice = price,
