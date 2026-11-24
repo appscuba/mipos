@@ -14,6 +14,7 @@ import com.example.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.security.MessageDigest
 
 data class UserPreferences(
   val themeMode: ThemeMode = ThemeMode.DARK,
@@ -36,17 +37,21 @@ class AppPreferencesDataStore(context: Context) {
   )
 
   /**
-   * Identificador estable de Android para esta app, firma, usuario y dispositivo.
-   * No depende de Google Play Services y permanece igual tras reinstalar la app
-   * en el mismo dispositivo (Android 8+).
+   * Fingerprint estable de Android para esta app, firma, usuario y dispositivo.
+   * Se mantiene tras reinstalar la app en el mismo dispositivo (Android 8+).
    */
-  fun deviceIdentitySeed(): String {
+  fun deviceIdentityFingerprint(): String {
     val androidId = Settings.Secure.getString(
       appContext.contentResolver,
       Settings.Secure.ANDROID_ID,
     ).orEmpty()
     if (androidId.isBlank() || androidId == "9774d56d682e549c") return ""
-    return "${appContext.packageName}:$androidId"
+    val seed = "${appContext.packageName}:$androidId"
+    return MessageDigest.getInstance("SHA-256")
+      .digest(seed.toByteArray(Charsets.UTF_8))
+      .joinToString("") { byte ->
+        (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+      }
   }
 
   private object Keys {
