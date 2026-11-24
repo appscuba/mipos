@@ -508,7 +508,7 @@ fun MainAppShell(
             }
             composable<AppDestination.Currencies> {
               val prefs = appState.preferences
-              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licenseKey, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
               if (isFree) {
                 LicenseRequiredScreen("Monedas y tasas", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
               } else {
@@ -524,7 +524,7 @@ fun MainAppShell(
             }
             composable<AppDestination.Reports> {
               val prefs = appState.preferences
-              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licenseKey, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
               if (isFree) {
                 LicenseRequiredScreen("Reportes", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
               } else {
@@ -560,7 +560,7 @@ fun MainAppShell(
             }
             composable<AppDestination.Backups> {
               val prefs = appState.preferences
-              val isFree = LicenseSnapshot(prefs.installationId, prefs.licensePhone, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
+              val isFree = LicenseSnapshot(prefs.installationId, prefs.licenseKey, prefs.licenseStatus, prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt).plan() == PlanStatus.FREE
               if (isFree) {
                 LicenseRequiredScreen("Respaldos", onActivate = { navController.navigate(AppDestination.LicenseActivation) })
               } else {
@@ -611,7 +611,7 @@ fun MainAppShell(
               LicenseActivationScreen(
                 repository = container.licenseRepository,
                 deviceId = licenseState.deviceId,
-                currentPhone = licenseState.phone,
+                currentLicenseKey = licenseState.licenseKey,
                 onActivated = { navController.popBackStack() },
                 modifier = Modifier.fillMaxSize(),
               )
