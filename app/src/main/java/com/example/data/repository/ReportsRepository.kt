@@ -10,6 +10,7 @@ import com.example.data.local.db.entity.CashMovementEntity
 import com.example.data.local.db.entity.CashSessionEntity
 import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.local.db.entity.ExpenseEntity
+import com.example.data.local.db.entity.ExpenseCategoryEntity
 import com.example.data.local.db.entity.PaymentEntity
 import com.example.data.local.db.entity.ProductEntity
 import com.example.data.local.db.entity.PurchaseEntity
@@ -29,6 +30,12 @@ enum class ReportPeriodPreset(val label: String) {
   THIS_MONTH("Mes"),
   ALL("Todo"),
 }
+
+data class ExpenseCategoryTotal(
+  val categoryName: String,
+  val totalBase: BigDecimal,
+  val expenseCount: Int,
+)
 
 data class ProductProfitabilityRow(
   val productId: Long,
@@ -50,6 +57,7 @@ data class BusinessReportSnapshot(
   val grossProfitBase: BigDecimal,
   val grossMarginPercent: BigDecimal,
   val operatingExpensesBase: BigDecimal,
+  val expenseBreakdown: List<ExpenseCategoryTotal>,
   val netProfitBase: BigDecimal,
   val netMarginPercent: BigDecimal,
   val totalPurchasesBase: BigDecimal,
@@ -87,6 +95,7 @@ class ReportsRepository(private val db: AppDatabase) {
     financeDao.observeOpenCashSession(businessId),
     financeDao.observeActiveCustomers(businessId),
     financeDao.observeActiveSuppliersForFinance(businessId),
+    financeDao.observeExpenseCategoriesForReport(businessId),
   ) { values ->
     val business = values[0] as BusinessEntity?
     val settings = values[1] as AppSettingsEntity?
@@ -109,6 +118,8 @@ class ReportsRepository(private val db: AppDatabase) {
     val customers = values[10] as List<CustomerEntity>
     @Suppress("UNCHECKED_CAST")
     val suppliers = values[11] as List<SupplierEntity>
+    @Suppress("UNCHECKED_CAST")
+    val expenseCategories = values[12] as List<ExpenseCategoryEntity>
 
     val periodSales = validSales.filter { it.saleDate in startMillis..endMillis }
     val periodSaleIds = periodSales.map { it.id }.toSet()
@@ -129,6 +140,17 @@ class ReportsRepository(private val db: AppDatabase) {
     val grossProfit = CostEngine.computeGrossProfit(netSales, cogs)
     val operatingExpenses = periodExpenses.fold(MoneyMath.ZERO) { acc, e -> MoneyMath.add(acc, e.convertedAmountBase) }
     val netProfit = CostEngine.computeNetProfit(grossProfit, operatingExpenses)
+    val categoryNames = expenseCategories.associate { it.id to it.name }
+    val expenseBreakdown = periodExpenses
+      .groupBy { it.expenseCategoryId }
+      .map { (categoryId, categoryExpenses) ->
+        ExpenseCategoryTotal(
+          categoryName = categoryNames[categoryId] ?: "Categoría archivada",
+          totalBase = categoryExpenses.fold(MoneyMath.ZERO) { acc, expense -> MoneyMath.add(acc, expense.convertedAmountBase) },
+          expenseCount = categoryExpenses.size,
+        )
+      }
+      .sortedByDescending { it.totalBase }
 
     val grossMargin = if (netSales > BigDecimal.ZERO) {
       grossProfit.multiply(BigDecimal("100")).divide(netSales, 1, RoundingMode.HALF_UP)
@@ -223,6 +245,7 @@ class ReportsRepository(private val db: AppDatabase) {
       grossProfitBase = grossProfit,
       grossMarginPercent = grossMargin,
       operatingExpensesBase = operatingExpenses,
+      expenseBreakdown = expenseBreakdown,
       netProfitBase = netProfit,
       netMarginPercent = netMargin,
       totalPurchasesBase = totalPurchases,
@@ -303,6 +326,9 @@ class ReportsRepository(private val db: AppDatabase) {
       appendLine("Costo de mercancía vendida: ${MoneyMath.format(snapshot.cogsBase, cur)}")
       appendLine("Ganancia bruta (${snapshot.grossMarginPercent}%): ${MoneyMath.format(snapshot.grossProfitBase, cur)}")
       appendLine("Gastos operativos (${snapshot.expensesCount}): ${MoneyMath.format(snapshot.operatingExpensesBase, cur)}")
+      snapshot.expenseBreakdown.forEach { row ->
+        appendLine("  - ${row.categoryName} (${row.expenseCount}): ${MoneyMath.format(row.totalBase, cur)}")
+      }
       appendLine("GANANCIA NETA (${snapshot.netMarginPercent}%): ${MoneyMath.format(snapshot.netProfitBase, cur)}")
       appendLine("----------------------------------------")
       appendLine("Compras del período (${snapshot.purchasesCount}): ${MoneyMath.format(snapshot.totalPurchasesBase, cur)}")
