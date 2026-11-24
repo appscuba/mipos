@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
 import com.example.core.units.UnitConverter
 import com.example.data.local.db.entity.CategoryEntity
+import com.example.data.license.LicenseRepository
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanStatus
+import kotlinx.coroutines.flow.first
 import com.example.data.repository.InventoryOverview
 import com.example.data.repository.InventoryRepository
 import com.example.data.repository.ProductModality
@@ -60,6 +64,7 @@ private data class InventoryFilters(
 class InventoryViewModel(
   private val businessIdFlow: StateFlow<Long>,
   private val inventoryRepository: InventoryRepository,
+  private val licenseRepository: LicenseRepository? = null,
 ) : ViewModel() {
 
   private val filters = MutableStateFlow(InventoryFilters())
@@ -146,8 +151,18 @@ class InventoryViewModel(
   fun saveProduct(request: SaveProductRequest, onSaved: (Long) -> Unit = {}) {
     viewModelScope.launch {
       try {
+        val isNewProduct = request.productId == null || request.productId <= 0L
+        val license = licenseRepository?.snapshot?.first()
+        val plan = license?.plan() ?: PlanStatus.TRIAL
+        val currentCount = uiState.value.items.size
+        if (isNewProduct && plan == PlanStatus.FREE && currentCount >= PlanLimits.MAX_PRODUCTS) {
+          feedback.value = "Plan gratuito: llegaste a los 30 productos. Activa una licencia para añadir más." to true
+          return@launch
+        }
         val id = inventoryRepository.saveProduct(request)
-        feedback.value = "Producto guardado correctamente." to false
+        feedback.value = if (isNewProduct && plan == PlanStatus.FREE && currentCount + 1 >= PlanLimits.PRODUCT_WARNING_AT) {
+          "Producto guardado correctamente. Aviso: te acercas al límite de 30 productos del plan gratuito."
+        } else "Producto guardado correctamente." to false
         onSaved(id)
       } catch (e: Exception) {
         feedback.value = (e.message ?: "No se pudo guardar el producto.") to true
@@ -221,9 +236,10 @@ class InventoryViewModel(
   class Factory(
     private val businessIdFlow: StateFlow<Long>,
     private val inventoryRepository: InventoryRepository,
+    private val licenseRepository: LicenseRepository? = null,
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      InventoryViewModel(businessIdFlow, inventoryRepository) as T
+      InventoryViewModel(businessIdFlow, inventoryRepository, licenseRepository) as T
   }
 }
