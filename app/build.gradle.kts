@@ -64,17 +64,8 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { test ->
-        val localRepo = file("/home/appuser/.m2/repository")
-        if (localRepo.exists()) {
-          test.systemProperty("maven.repo.local", localRepo.absolutePath)
-          test.systemProperty("robolectric.offline", "true")
-          test.systemProperty(
-            "robolectric.dependency.dir",
-            "${localRepo.absolutePath}/org/robolectric/android-all-instrumented/16-robolectric-13921718-i7",
-          )
-        }
-      }
+      // Let Robolectric resolve the matching Android SDK artifact from its declared
+      // @Config(sdk = [35]) test target. Avoid machine-specific local Maven paths.
     }
   }
   dependenciesInfo {
