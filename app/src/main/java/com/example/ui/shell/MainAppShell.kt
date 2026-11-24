@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
@@ -77,6 +78,7 @@ import com.example.data.license.LicenseSnapshot
 import com.example.data.license.PlanStatus
 import com.example.ui.license.LicenseActivationScreen
 import com.example.ui.license.LicenseRequiredScreen
+import com.example.ui.license.PlansScreen
 import com.example.ui.license.LicenseViewModel
 import com.example.data.repository.AppPermissions
 import com.example.ui.MainAppState
@@ -131,6 +133,7 @@ private val DRAWER_ENTRIES = listOf(
   DrawerMenuEntry("Monedas y Tasas", Icons.Filled.CurrencyExchange, AppDestination.Currencies, "drawer_currencies", AppPermissions.SETTINGS_MANAGE),
   DrawerMenuEntry("Reportes y Ganancias", Icons.Filled.Assessment, AppDestination.Reports, "drawer_reports", AppPermissions.REPORTS_COST_PROFIT),
   DrawerMenuEntry("Usuarios y Auditoría", Icons.Filled.AdminPanelSettings, AppDestination.UsersAudit, "drawer_users_audit"),
+  DrawerMenuEntry("Planes y licencias", Icons.Filled.Star, AppDestination.Plans, "drawer_plans"),
   DrawerMenuEntry("Configuración", Icons.Filled.Settings, AppDestination.BusinessSettings, "drawer_settings", AppPermissions.SETTINGS_MANAGE),
 )
 
@@ -187,6 +190,7 @@ fun MainAppShell(
     currentDestination?.hasRoute<AppDestination.Backups>() == true -> "Respaldos"
     currentDestination?.hasRoute<AppDestination.BusinessSettings>() == true -> "Configuración"
     currentDestination?.hasRoute<AppDestination.LicenseActivation>() == true -> "Activar licencia"
+    currentDestination?.hasRoute<AppDestination.Plans>() == true -> "Planes de Stock+"
     else -> "Stock+"
   }
 
@@ -227,6 +231,7 @@ fun MainAppShell(
                 AppDestination.UsersAudit -> currentDestination?.hasRoute<AppDestination.UsersAudit>() == true
                 AppDestination.Backups -> currentDestination?.hasRoute<AppDestination.Backups>() == true
                 AppDestination.BusinessSettings -> currentDestination?.hasRoute<AppDestination.BusinessSettings>() == true
+                AppDestination.Plans -> currentDestination?.hasRoute<AppDestination.Plans>() == true
                 else -> false
               },
               onClick = { navigateFromDrawer(entry.destination) },
@@ -600,6 +605,18 @@ fun MainAppShell(
                 onNavigateToBackups = { navController.navigate(AppDestination.Backups) },
                 onActivateLicense = { navController.navigate(AppDestination.LicenseActivation) },
                 planSummary = planSummary,
+              )
+            }
+            composable<AppDestination.Plans> {
+              val prefs = appState.preferences
+              val licenseSnapshot = LicenseSnapshot(
+                prefs.installationId, prefs.licenseKey, prefs.licenseStatus,
+                prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt,
+              )
+              PlansScreen(
+                snapshot = licenseSnapshot,
+                onActivate = { navController.navigate(AppDestination.LicenseActivation) },
+                modifier = Modifier.fillMaxSize(),
               )
             }
             composable<AppDestination.LicenseActivation> {
