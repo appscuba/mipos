@@ -189,7 +189,7 @@ fun PosScreen(
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = if (maxWidth < 360.dp) 10.dp else 16.dp, vertical = 8.dp),
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -208,6 +208,9 @@ fun PosScreen(
                   style = MonoMetricMedium,
                   fontWeight = FontWeight.Bold,
                   color = MaterialTheme.colorScheme.primary,
+                  maxLines = 1,
+                  softWrap = false,
+                  overflow = TextOverflow.Ellipsis,
                   modifier = Modifier.testTag("pos_cart_bar_total"),
                 )
               }
@@ -220,7 +223,7 @@ fun PosScreen(
               ) {
                 Icon(Icons.Filled.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Cobrar (${state.cartItems.size})")
+                Text(if (maxWidth < 360.dp) "Cobrar" else "Cobrar (${state.cartItems.size})", maxLines = 1, softWrap = false)
               }
             }
           }
