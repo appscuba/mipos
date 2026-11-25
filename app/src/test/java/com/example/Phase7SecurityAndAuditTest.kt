@@ -123,4 +123,106 @@ class Phase7SecurityAndAuditTest {
     assertTrue(logs.any { it.action == "USER_SWITCHED" })
     assertTrue(logs.any { it.action == "SESSION_UNLOCKED" })
   }
+
+  @Test
+  fun `propietario modifica y elimina usuarios con protecciones`() = runBlocking {
+    val owner = db.securityDao().observeUsers(businessId).first().first()
+    val clerkId = securityRepo.createUser(
+      businessId = businessId,
+      fullName = "Marta Cajera",
+      username = "marta",
+      roleCode = "CLERK",
+      pin = "1234",
+      actorUserId = owner.id,
+    )
+
+    // Modificar: nombre, usuario y rol (asciende a Propietario)
+    securityRepo.updateUserProfile(
+      businessId = businessId,
+      targetUserId = clerkId,
+      fullName = "Marta Supervisora",
+      username = "marta2",
+      roleCode = "OWNER",
+      actorUserId = owner.id,
+    )
+    val updated = securityRepo.observeUsersWithRoles(businessId).first().first { it.user.id == clerkId }
+    assertTrue(updated.user.fullName == "Marta Supervisora")
+    assertTrue(updated.user.username == "marta2")
+    assertTrue(updated.role?.code == "OWNER")
+
+    // Usuario duplicado al modificar: rechazado
+    var duplicateRejected = false
+    try {
+      securityRepo.updateUserProfile(
+        businessId = businessId,
+        targetUserId = clerkId,
+        fullName = "Marta Supervisora",
+        username = owner.username,
+        roleCode = "OWNER",
+        actorUserId = owner.id,
+      )
+    } catch (_: IllegalArgumentException) {
+      duplicateRejected = true
+    }
+    assertTrue(duplicateRejected)
+
+    // Sin permiso de gestión: un dependiente no puede modificar ni eliminar
+    val clerk2Id = securityRepo.createUser(
+      businessId = businessId,
+      fullName = "Pedro Cajero",
+      username = "pedro",
+      roleCode = "CLERK",
+      pin = null,
+      actorUserId = owner.id,
+    )
+    var editDenied = false
+    try {
+      securityRepo.updateUserProfile(
+        businessId = businessId,
+        targetUserId = clerk2Id,
+        fullName = "Otro Nombre",
+        username = "pedro",
+        roleCode = "CLERK",
+        actorUserId = clerk2Id,
+      )
+    } catch (_: IllegalArgumentException) {
+      editDenied = true
+    }
+    assertTrue(editDenied)
+
+    // Eliminar el usuario en sesión: rechazado
+    var selfDeleteRejected = false
+    try {
+      securityRepo.deleteUser(businessId = businessId, targetUserId = owner.id, actorUserId = owner.id)
+    } catch (_: IllegalArgumentException) {
+      selfDeleteRejected = true
+    }
+    assertTrue(selfDeleteRejected)
+
+    // Eliminar a la otra propietaria (queda el propietario en sesión): permitido
+    securityRepo.deleteUser(businessId = businessId, targetUserId = clerkId, actorUserId = owner.id)
+    val afterDelete = securityRepo.observeUsersWithRoles(businessId).first()
+    assertTrue(afterDelete.none { it.user.id == clerkId })
+
+    // Degradar al único Propietario activo restante: rechazado
+    var demoteRejected = false
+    try {
+      securityRepo.updateUserProfile(
+        businessId = businessId,
+        targetUserId = owner.id,
+        fullName = owner.fullName,
+        username = owner.username,
+        roleCode = "CLERK",
+        actorUserId = owner.id,
+      )
+    } catch (_: IllegalArgumentException) {
+      demoteRejected = true
+    }
+    assertTrue(demoteRejected)
+
+    // Bitácora: actualización y eliminación registradas
+    val logs = securityRepo.observeAuditLogs(businessId).first()
+    assertTrue(logs.any { it.action == "USER_UPDATED" })
+    assertTrue(logs.any { it.action == "USER_DELETED" })
+  }
 }
