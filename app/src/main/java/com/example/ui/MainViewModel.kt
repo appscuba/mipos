@@ -34,9 +34,17 @@ data class MainAppState(
 
 class MainViewModel(
   private val preferences: AppPreferencesDataStore,
-  businessRepository: BusinessRepository,
+  private val businessRepository: BusinessRepository,
   private val securityRepository: SecurityRepository,
 ) : ViewModel() {
+
+  init {
+    // Siembra de roles y permisos también en instalaciones existentes:
+    // los perfiles nuevos (Administrador, Almacenero) aparecen sin reinstalar.
+    viewModelScope.launch {
+      businessRepository.ensureSystemRolesAndPermissions()
+    }
+  }
 
   private val workspaceFlow = businessRepository.observeWorkspaceSnapshot()
   private val businessIdFlow = workspaceFlow.map { it.business?.id ?: 0L }
