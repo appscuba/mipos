@@ -24,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -82,6 +85,8 @@ fun UsersAuditScreen(
   var showCreateDialog by remember { mutableStateOf(false) }
   var editingPinTarget by remember { mutableStateOf<UserWithRole?>(null) }
   var switchingTarget by remember { mutableStateOf<UserWithRole?>(null) }
+  var editingUserTarget by remember { mutableStateOf<UserWithRole?>(null) }
+  var deletingUserTarget by remember { mutableStateOf<UserWithRole?>(null) }
 
   LaunchedEffect(state.feedbackMessage) {
     val msg = state.feedbackMessage
@@ -212,31 +217,53 @@ fun UsersAuditScreen(
                 }
               }
 
-              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!isCurrent && item.user.isActive) {
-                  OutlinedButton(
-                    onClick = {
-                      if (item.user.pinHash.isNullOrBlank()) {
-                        viewModel.switchUser(item.user.id, null) {}
-                      } else {
-                        switchingTarget = item
-                      }
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp).testTag("user_switch_btn_${item.user.username}"),
-                  ) {
-                    Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Cambiar a este usuario")
+              // Acciones principales: si hay dos botones se apilan a ancho completo
+              // para que el texto nunca se corte en pantallas estrechas.
+              val showSwitch = !isCurrent && item.user.isActive
+              val showPin = canManageUsers || isCurrent
+              val onSwitchClick: () -> Unit = {
+                if (item.user.pinHash.isNullOrBlank()) {
+                  viewModel.switchUser(item.user.id, null) {}
+                } else {
+                  switchingTarget = item
+                }
+              }
+              if (showSwitch && showPin) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  SwitchUserButton(item = item, modifier = Modifier.fillMaxWidth().height(48.dp), onClick = onSwitchClick)
+                  PinButton(item = item, modifier = Modifier.fillMaxWidth().height(48.dp), onClick = { editingPinTarget = item })
+                }
+              } else if (showSwitch || showPin) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                  if (showSwitch) {
+                    SwitchUserButton(item = item, modifier = Modifier.weight(1f).height(48.dp), onClick = onSwitchClick)
+                  }
+                  if (showPin) {
+                    PinButton(item = item, modifier = Modifier.weight(1f).height(48.dp), onClick = { editingPinTarget = item })
                   }
                 }
-                if (canManageUsers || isCurrent) {
+              }
+
+              if (canManageUsers) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                   OutlinedButton(
-                    onClick = { editingPinTarget = item },
-                    modifier = Modifier.weight(1f).height(48.dp).testTag("user_pin_btn_${item.user.username}"),
+                    onClick = { editingUserTarget = item },
+                    modifier = Modifier.weight(1f).height(48.dp).testTag("user_edit_btn_${item.user.username}"),
                   ) {
-                    Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (item.user.pinHash.isNullOrBlank()) "Asignar PIN" else "Cambiar PIN")
+                    Text("Editar")
+                  }
+                  if (!isCurrent) {
+                    OutlinedButton(
+                      onClick = { deletingUserTarget = item },
+                      colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                      modifier = Modifier.weight(1f).height(48.dp).testTag("user_delete_btn_${item.user.username}"),
+                    ) {
+                      Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                      Spacer(Modifier.width(6.dp))
+                      Text("Eliminar")
+                    }
                   }
                 }
               }
@@ -312,6 +339,65 @@ fun UsersAuditScreen(
       },
       onDismiss = { switchingTarget = null },
     )
+  }
+
+  editingUserTarget?.let { target ->
+    EditUserDialog(
+      user = target,
+      roles = state.roles,
+      isSaving = state.isSaving,
+      onSave = { fullName, username, roleCode ->
+        viewModel.updateUserProfile(target.user.id, fullName, username, roleCode) {
+          editingUserTarget = null
+        }
+      },
+      onDismiss = { editingUserTarget = null },
+    )
+  }
+
+  deletingUserTarget?.let { target ->
+    DeleteUserDialog(
+      user = target,
+      isSaving = state.isSaving,
+      onConfirm = {
+        viewModel.deleteUser(target.user.id) {
+          deletingUserTarget = null
+        }
+      },
+      onDismiss = { deletingUserTarget = null },
+    )
+  }
+}
+
+@Composable
+private fun SwitchUserButton(
+  item: UserWithRole,
+  modifier: Modifier = Modifier,
+  onClick: () -> Unit,
+) {
+  OutlinedButton(
+    onClick = onClick,
+    modifier = modifier.testTag("user_switch_btn_${item.user.username}"),
+  ) {
+    Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
+    Spacer(Modifier.width(6.dp))
+    Text("Cambiar a este usuario")
+  }
+}
+
+@Composable
+private fun PinButton(
+  item: UserWithRole,
+  modifier: Modifier = Modifier,
+  onClick: () -> Unit,
+) {
+  OutlinedButton(
+    onClick = onClick,
+    modifier = modifier.testTag("user_pin_btn_${item.user.username}"),
+  ) {
+    Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(16.dp))
+    Spacer(Modifier.width(6.dp))
+    Text(if (item.user.pinHash.isNullOrBlank()) "Asignar PIN" else "Cambiar PIN")
   }
 }
 
@@ -482,6 +568,108 @@ private fun SwitchUserPinDialog(
         modifier = Modifier.minimumInteractiveComponentSize().testTag("switch_pin_confirm_button"),
       ) {
         Text("Entrar")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) { Text("Cancelar") }
+    },
+  )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EditUserDialog(
+  user: UserWithRole,
+  roles: List<RoleEntity>,
+  isSaving: Boolean,
+  onSave: (fullName: String, username: String, roleCode: String) -> Unit,
+  onDismiss: () -> Unit,
+) {
+  var fullName by remember { mutableStateOf(user.user.fullName) }
+  var username by remember { mutableStateOf(user.user.username) }
+  var roleCode by remember { mutableStateOf(user.role?.code ?: "CLERK") }
+  var error by remember { mutableStateOf<String?>(null) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Editar Usuario") },
+    text = {
+      Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        OutlinedTextField(
+          value = fullName,
+          onValueChange = { fullName = it },
+          label = { Text("Nombre completo *") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("edit_user_fullname_input"),
+        )
+        OutlinedTextField(
+          value = username,
+          onValueChange = { username = it },
+          label = { Text("Usuario (min. 3 letras) *") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("edit_user_username_input"),
+        )
+        Text("Rol asignado", style = MaterialTheme.typography.labelMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          roles.forEach { role ->
+            FilterChip(
+              selected = roleCode == role.code,
+              onClick = { roleCode = role.code },
+              label = { Text(role.name) },
+              modifier = Modifier.testTag("edit_user_role_chip_${role.code}"),
+            )
+          }
+        }
+        if (error != null) {
+          Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          when {
+            fullName.trim().isEmpty() -> error = "El nombre completo es obligatorio."
+            username.trim().length < 3 -> error = "El usuario debe tener al menos 3 caracteres."
+            else -> onSave(fullName, username, roleCode)
+          }
+        },
+        enabled = !isSaving,
+        modifier = Modifier.minimumInteractiveComponentSize().testTag("edit_user_save_button"),
+      ) {
+        Text("Guardar Cambios")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) { Text("Cancelar") }
+    },
+  )
+}
+
+@Composable
+private fun DeleteUserDialog(
+  user: UserWithRole,
+  isSaving: Boolean,
+  onConfirm: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Eliminar Usuario") },
+    text = {
+      Text("Se eliminará el usuario '${user.user.fullName}' (@${user.user.username}) de forma permanente. Esta acción no se puede deshacer.")
+    },
+    confirmButton = {
+      Button(
+        onClick = onConfirm,
+        enabled = !isSaving,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+        modifier = Modifier.minimumInteractiveComponentSize().testTag("delete_user_confirm_button"),
+      ) {
+        Text("Eliminar")
       }
     },
     dismissButton = {
