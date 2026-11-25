@@ -8,6 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      BUILD_VERSION_CODE: ${{ github.run_number + 1000 }}
+      KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -18,15 +23,15 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Preparar keystore debug y Gradle Wrapper
+      - name: Preparar las llaves de firma permanentes
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
         run: |
           set -e
-          if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
-          if [ ! -s debug.keystore ]; then
-            keytool -genkeypair -noprompt -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          base64 -d debug.keystore.base64 > debug.keystore
+          echo "$RELEASE_KEYSTORE_B64" | base64 -d > my-upload-key.jks
+          keytool -list -keystore my-upload-key.jks -storepass "$STORE_PASSWORD" > /dev/null
+          echo "Llaves listas y verificadas."
           chmod +x gradlew
 
       - name: Ejecutar pruebas unitarias y Robolectric
@@ -35,9 +40,19 @@ jobs:
       - name: Compilar APK Debug
         run: ./gradlew :app:assembleDebug
 
-      - name: Subir el APK generado
+      - name: Compilar APK de publicación
+        run: ./gradlew :app:assembleRelease
+
+      - name: Subir el APK Debug
         uses: actions/upload-artifact@v4
         with:
           name: stockplus-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Subir el APK de publicación
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockplus-release-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
