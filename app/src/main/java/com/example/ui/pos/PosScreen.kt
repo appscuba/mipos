@@ -92,7 +92,8 @@ fun PosScreen(
     val msg = state.feedbackMessage
     if (msg != null) {
       snackbarHostState.showSnackbar(msg)
-      viewModel.clearFeedback()
+      // Keep checkout errors visible inside the payment dialog until it is dismissed.
+      if (!showCheckoutDialog) viewModel.clearFeedback()
     }
   }
 
@@ -297,7 +298,10 @@ fun PosScreen(
           showCheckoutDialog = false
         }
       },
-      onDismiss = { showCheckoutDialog = false },
+      onDismiss = {
+        showCheckoutDialog = false
+        viewModel.clearFeedback()
+      },
     )
   }
 
