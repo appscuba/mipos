@@ -235,6 +235,22 @@ class ExampleRobolectricTest {
         .isNotEmpty()
     }
 
+    // Abrir la Caja Diaria: sin sesión de caja abierta el POS rechaza la venta
+    // y el comprobante nunca aparece (misma regla que en producción).
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
+    }
+
     // 1. Crear producto Arroz (10 lb = 5000 g, precio 550, costo 400)
     composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -464,6 +480,22 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
     }
 
+    // Abrir la Caja Diaria: sin sesión de caja abierta el POS rechaza la venta
+    // y el comprobante nunca aparece (misma regla que en producción).
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
+    }
+
     // Crear producto por unidad
     composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -496,6 +528,14 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("quick_customer_name_input").performTextInput("Ana López")
     composeTestRule.onNodeWithTag("quick_customer_save_button").performClick()
 
+    // Esperar a que el diálogo de cliente rápido se cierre del todo antes de
+    // seguir: el árbol del POS existe bajo el diálogo, así que buscar el botón
+    // «+1» no sincroniza nada; si el toque cae sobre el diálogo aún visible,
+    // el producto nunca entra al carrito y el checkout sale vacío.
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("quick_customer_name_input").fetchSemanticsNodes().isEmpty()
+    }
+
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("pos_quick_add_1").fetchSemanticsNodes().isNotEmpty()
     }
@@ -527,6 +567,22 @@ class ExampleRobolectricTest {
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
+    }
+
+    // Abrir la Caja Diaria: sin sesión de caja abierta el POS rechaza la venta
+    // y el comprobante nunca aparece (misma regla que en producción).
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
     }
 
     // 1. Inventario -> Categorías -> Editar y Eliminar
