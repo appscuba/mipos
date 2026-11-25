@@ -47,6 +47,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -213,6 +214,16 @@ fun UsersAuditScreen(
                   Switch(
                     checked = item.user.isActive,
                     onCheckedChange = { active -> viewModel.toggleUserActive(item.user.id, active) },
+                    // Colores fuertes: con los del tema el interruptor apagado se veía
+                    // casi invisible (gris pálido sobre la tarjeta blanca).
+                    colors = SwitchDefaults.colors(
+                      checkedTrackColor = MaterialTheme.colorScheme.primary,
+                      checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                      checkedBorderColor = MaterialTheme.colorScheme.primary,
+                      uncheckedTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.30f),
+                      uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                      uncheckedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                   )
                 }
               }
