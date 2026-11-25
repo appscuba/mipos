@@ -66,6 +66,7 @@ class InventoryViewModel(
   private val businessIdFlow: StateFlow<Long>,
   private val inventoryRepository: InventoryRepository,
   private val preferences: AppPreferencesDataStore,
+  private val currentUserIdProvider: () -> Long? = { null },
 ) : ViewModel() {
 
   private val filters = MutableStateFlow(InventoryFilters())
@@ -166,7 +167,9 @@ class InventoryViewModel(
     }
     viewModelScope.launch {
       try {
-        val id = inventoryRepository.saveProduct(request)
+        val id = inventoryRepository.saveProduct(
+          request.copy(userId = request.userId ?: currentUserIdProvider()),
+        )
         // Aviso suave al cruzar el 80 % de los productos del plan.
         val newCount = current.items.size + 1
         feedback.value = if (
@@ -240,7 +243,9 @@ class InventoryViewModel(
   fun recordStockAdjustment(request: StockAdjustmentRequest, onSuccess: () -> Unit = {}) {
     viewModelScope.launch {
       try {
-        inventoryRepository.recordStockAdjustment(request)
+        inventoryRepository.recordStockAdjustment(
+          request.copy(userId = request.userId ?: currentUserIdProvider()),
+        )
         feedback.value = "Movimiento de inventario registrado." to false
         onSuccess()
       } catch (e: Exception) {
@@ -253,9 +258,10 @@ class InventoryViewModel(
     private val businessIdFlow: StateFlow<Long>,
     private val inventoryRepository: InventoryRepository,
     private val preferences: AppPreferencesDataStore,
+    private val currentUserIdProvider: () -> Long? = { null },
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      InventoryViewModel(businessIdFlow, inventoryRepository, preferences) as T
+      InventoryViewModel(businessIdFlow, inventoryRepository, preferences, currentUserIdProvider) as T
   }
 }
