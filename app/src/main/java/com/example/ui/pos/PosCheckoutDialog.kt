@@ -775,6 +775,15 @@ fun PosCartCheckoutContent(
         if (errorText != null) {
           Text(errorText!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
+        // Keep repository/validation failures visible while the checkout dialog is open.
+        state.feedbackMessage?.takeIf { it != "Venta confirmada correctamente" }?.let { message ->
+          Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.fillMaxWidth().testTag("pos_checkout_feedback"),
+          )
+        }
 
         Button(
           onClick = {
@@ -799,7 +808,7 @@ fun PosCartCheckoutContent(
           Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(19.dp))
           Spacer(Modifier.width(8.dp))
           Text(
-            text = "Finalizar Compra • ${MoneyMath.format(state.totalBase, state.primaryCurrency)}",
+            text = if (state.isSaving) "Procesando venta…" else "Finalizar Compra • ${MoneyMath.format(state.totalBase, state.primaryCurrency)}",
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,
