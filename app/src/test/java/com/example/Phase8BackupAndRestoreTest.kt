@@ -206,6 +206,7 @@ class Phase8BackupAndRestoreTest {
     )
 
     // 2. Second user with PIN and switch active session to that user
+        val ownerId = prefs.preferencesFlow.first().activeUserId
     val clerkId = securityRepo.createUser(
       businessId = businessId,
       fullName = "Carlos Dependiente",
@@ -243,7 +244,7 @@ class Phase8BackupAndRestoreTest {
       StockAdjustmentRequest(
         businessId = businessId,
         productId = oilId,
-        userId = clerkId,
+        userId = ownerId,
         mode = StockAdjustmentMode.SET_EXACT,
         enteredQuantity = BigDecimal("30"),
         unitLabel = "u",
