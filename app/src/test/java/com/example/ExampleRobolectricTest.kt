@@ -541,8 +541,7 @@ class ExampleRobolectricTest {
     // pueden quedar fuera del viewport y no aparecer en el árbol semántico hasta
     // desplazar el contenido; por eso no se deben exigir antes del scroll.
     composeTestRule.waitUntil(timeoutMillis = 15_000) {
-      composeTestRule.onAllNodesWithText("Cobrar (1)").fetchSemanticsNodes().isNotEmpty() &&
-        composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("pos_checkout_scroll")
       .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
