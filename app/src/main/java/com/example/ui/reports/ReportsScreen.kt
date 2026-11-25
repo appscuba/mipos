@@ -238,6 +238,13 @@ fun ReportsScreen(
                   tag = "report_gross_profit",
                 )
                 ReportLine("- Gastos operativos (${report.expensesCount})", MoneyMath.format(report.operatingExpensesBase, cur), tag = "report_expenses")
+                report.expensesByCategory.forEach { row ->
+                  ReportLine(
+                    label = "      · ${row.categoryName}",
+                    value = MoneyMath.format(row.totalBase, cur),
+                    tag = "report_expense_cat_${row.categoryName.lowercase().replace(' ', '_')}",
+                  )
+                }
                 HorizontalDivider()
                 Row(
                   modifier = Modifier.fillMaxWidth(),
