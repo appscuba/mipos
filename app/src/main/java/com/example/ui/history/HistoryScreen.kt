@@ -74,6 +74,7 @@ import java.util.Locale
 fun HistoryScreen(
   viewModel: HistoryViewModel,
   modifier: Modifier = Modifier,
+  freeVersionFooter: Boolean = false,
 ) {
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   val snackbarHostState = remember { SnackbarHostState() }
@@ -262,6 +263,7 @@ fun HistoryScreen(
       business = state.business,
       saleWithDetails = item,
       onDismiss = { receiptSale = null },
+      freeVersionFooter = freeVersionFooter,
     )
   }
 }
