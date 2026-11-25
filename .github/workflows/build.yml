@@ -26,12 +26,10 @@ jobs:
           java-version: "21"
 
       - name: Preparar las llaves de firma permanentes
-        env:
-          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
         run: |
           set -e
           base64 -d debug.keystore.base64 > debug.keystore
-          echo "$RELEASE_KEYSTORE_B64" | base64 -d > my-upload-key.jks
+          base64 -d my-upload-key.jks.enc.b64 | openssl enc -d -aes-256-cbc -pbkdf2 -pass env:STORE_PASSWORD > my-upload-key.jks
           keytool -list -keystore my-upload-key.jks -storepass "$STORE_PASSWORD" > /dev/null
           echo "Llaves listas y verificadas."
           chmod +x gradlew
