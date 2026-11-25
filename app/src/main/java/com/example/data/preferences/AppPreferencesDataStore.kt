@@ -30,6 +30,15 @@ data class UserPreferences(
   val licenseLastValidatedAt: Long = 0L,
   // Vencimiento (epoch ms) del último grant offline FIRMADO verificado.
   val licenseGrantExpiresAt: Long = 0L,
+  // Cuenta regresiva local de la licencia (validación única): al
+  // validar, el servidor firma su hora y el vencimiento; el restante
+  // (vencimiento − hora del servidor) se ancla junto a los dos
+  // relojes del equipo y desde ahí solo baja, inmune a cambios de
+  // hora del sistema. Ver LicenseCountdown.
+  // licenseAnchorRemainingMs: restante al anclar (−1 = sin ancla).
+  val licenseAnchorRemainingMs: Long = -1L,
+  val licenseAnchorElapsedMs: Long = 0L,
+  val licenseAnchorWallMs: Long = 0L,
   // Primer arranque de la app (epoch ms). Arranca la prueba gratuita
   // de 15 días del modo freemium; se escribe una sola vez.
   val firstLaunchAt: Long = 0L,
@@ -52,6 +61,9 @@ class AppPreferencesDataStore(context: Context) {
     val LICENSE_EXPIRES_AT = longPreferencesKey("license_expires_at")
     val LICENSE_LAST_VALIDATED_AT = longPreferencesKey("license_last_validated_at")
     val LICENSE_GRANT_EXPIRES_AT = longPreferencesKey("license_grant_expires_at")
+    val LICENSE_ANCHOR_REMAINING_MS = longPreferencesKey("license_anchor_remaining_ms")
+    val LICENSE_ANCHOR_ELAPSED_MS = longPreferencesKey("license_anchor_elapsed_ms")
+    val LICENSE_ANCHOR_WALL_MS = longPreferencesKey("license_anchor_wall_ms")
     val FIRST_LAUNCH_AT = longPreferencesKey("first_launch_at")
   }
 
@@ -70,6 +82,9 @@ class AppPreferencesDataStore(context: Context) {
       licenseExpiresAt = prefs[Keys.LICENSE_EXPIRES_AT] ?: 0L,
       licenseLastValidatedAt = prefs[Keys.LICENSE_LAST_VALIDATED_AT] ?: 0L,
       licenseGrantExpiresAt = prefs[Keys.LICENSE_GRANT_EXPIRES_AT] ?: 0L,
+      licenseAnchorRemainingMs = prefs[Keys.LICENSE_ANCHOR_REMAINING_MS] ?: -1L,
+      licenseAnchorElapsedMs = prefs[Keys.LICENSE_ANCHOR_ELAPSED_MS] ?: 0L,
+      licenseAnchorWallMs = prefs[Keys.LICENSE_ANCHOR_WALL_MS] ?: 0L,
       firstLaunchAt = prefs[Keys.FIRST_LAUNCH_AT] ?: 0L,
     )
   }
@@ -160,12 +175,36 @@ class AppPreferencesDataStore(context: Context) {
     expiresAt: Long,
     validatedAt: Long,
     grantExpiresAt: Long,
+    anchorRemainingMs: Long = -1L,
+    anchorElapsedMs: Long = 0L,
+    anchorWallMs: Long = 0L,
   ) {
     dataStore.edit { prefs ->
       prefs[Keys.LICENSE_STATUS] = status
       prefs[Keys.LICENSE_EXPIRES_AT] = expiresAt
       prefs[Keys.LICENSE_LAST_VALIDATED_AT] = validatedAt
       prefs[Keys.LICENSE_GRANT_EXPIRES_AT] = grantExpiresAt
+      prefs[Keys.LICENSE_ANCHOR_REMAINING_MS] = anchorRemainingMs
+      prefs[Keys.LICENSE_ANCHOR_ELAPSED_MS] = anchorElapsedMs
+      prefs[Keys.LICENSE_ANCHOR_WALL_MS] = anchorWallMs
+    }
+  }
+
+  /**
+   * Re-ancla la cuenta regresiva: guarda el restante YA calculado y
+   * las marcas actuales de ambos relojes. El restante solo puede
+   * bajar respecto al anterior; quien llama lo garantiza usando
+   * LicenseCountdown.remainingMs sobre el ancla previa.
+   */
+  suspend fun saveLicenseCountdownAnchor(
+    remainingMs: Long,
+    elapsedMs: Long,
+    wallMs: Long,
+  ) {
+    dataStore.edit { prefs ->
+      prefs[Keys.LICENSE_ANCHOR_REMAINING_MS] = remainingMs
+      prefs[Keys.LICENSE_ANCHOR_ELAPSED_MS] = elapsedMs
+      prefs[Keys.LICENSE_ANCHOR_WALL_MS] = wallMs
     }
   }
 
