@@ -314,7 +314,9 @@ class FinanceRepository(private val db: AppDatabase) {
               businessId = businessId,
               cashSessionId = session.id,
               userId = userId,
-              movementType = "EXTRA_INCOME",
+              // Tipo propio: un reverso de gasto anulado NO es un ingreso extra;
+              // si se marcara EXTRA_INCOME inflaría los ingresos de Finanzas y Reportes.
+              movementType = "EXPENSE_ANNUL",
               affectsPhysicalCash = true,
               currencyCode = expense.currencyCode,
               originalAmount = expense.originalAmount,
