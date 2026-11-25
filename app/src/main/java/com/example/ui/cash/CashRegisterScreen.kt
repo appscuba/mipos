@@ -284,16 +284,16 @@ private fun OpenCashSummaryCard(
 
       HorizontalDivider()
 
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
+      // Etiqueta arriba e importe debajo a ancho completo: en un mismo
+      // renglón el importe grande se partía y se montaba sobre la etiqueta.
+      Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text("Efectivo esperado en caja", style = MaterialTheme.typography.titleMedium)
         Text(
           text = MoneyMath.format(session.expectedCashBase, primaryCurrency),
           style = MonoMetricLarge,
           fontWeight = FontWeight.Bold,
+          maxLines = 1,
+          softWrap = false,
           color = MaterialTheme.colorScheme.primary,
           modifier = Modifier.testTag("cash_expected_amount"),
         )
@@ -308,13 +308,19 @@ private fun OpenCashSummaryCard(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+          Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+          ) {
             Icon(Icons.Filled.AccountBalance, contentDescription = null, modifier = Modifier.size(16.dp))
             Text("Transferencias (no suma al cajón)", style = MaterialTheme.typography.bodySmall)
           }
           Text(
             text = MoneyMath.format(session.totalTransferSalesBase, primaryCurrency),
             style = MonoMetricMedium,
+            maxLines = 1,
+            softWrap = false,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.testTag("cash_transfer_sales_amount"),
           )
