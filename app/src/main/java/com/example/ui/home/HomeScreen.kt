@@ -179,7 +179,8 @@ fun HomeScreen(
           value = MoneyMath.format(workspace.inventoryValueBase, baseCurrency),
           subtitle = "${workspace.activeProductCount} productos • ${workspace.categoriesCount} cat.",
           icon = Icons.Filled.Inventory2,
-          modifier = Modifier.weight(1f),
+          // El importe necesita más ancho que el contador de alertas.
+          modifier = Modifier.weight(1.5f),
         )
         KpiStatCard(
           title = "Alertas stock",
@@ -347,7 +348,12 @@ private fun KpiStatCard(
       }
       Text(
         text = value,
-        style = MonoMetricLarge,
+        // Las tarjetas KPI van a media pantalla: tamaño medio y una sola
+        // línea para que el importe nunca se parta en dos renglones.
+        style = MonoMetricMedium,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        softWrap = false,
         color = MaterialTheme.colorScheme.onSurface,
       )
       Text(
