@@ -35,6 +35,7 @@ class ProductDetailViewModel(
   private val productId: Long,
   private val inventoryRepository: InventoryRepository,
   businessRepository: BusinessRepository,
+  private val currentUserIdProvider: () -> Long? = { null },
 ) : ViewModel() {
 
   private val feedback = MutableStateFlow<Pair<String, Boolean>?>(null)
@@ -69,7 +70,9 @@ class ProductDetailViewModel(
   fun recordAdjustment(request: StockAdjustmentRequest, onSuccess: () -> Unit = {}) {
     viewModelScope.launch {
       try {
-        inventoryRepository.recordStockAdjustment(request)
+        inventoryRepository.recordStockAdjustment(
+          request.copy(userId = request.userId ?: currentUserIdProvider()),
+        )
         feedback.value = "Ajuste guardado en el kárdex." to false
         onSuccess()
       } catch (e: Exception) {
@@ -120,7 +123,9 @@ class ProductDetailViewModel(
   fun updateProduct(request: SaveProductRequest, onSuccess: () -> Unit = {}) {
     viewModelScope.launch {
       try {
-        inventoryRepository.saveProduct(request)
+        inventoryRepository.saveProduct(
+          request.copy(userId = request.userId ?: currentUserIdProvider()),
+        )
         feedback.value = "Producto actualizado." to false
         onSuccess()
       } catch (e: Exception) {
@@ -132,7 +137,7 @@ class ProductDetailViewModel(
   fun archiveProduct(businessId: Long, onArchived: () -> Unit) {
     viewModelScope.launch {
       try {
-        inventoryRepository.archiveProduct(businessId, productId)
+        inventoryRepository.archiveProduct(businessId, productId, currentUserIdProvider())
         onArchived()
       } catch (e: Exception) {
         feedback.value = (e.message ?: "Error al archivar producto.") to true
@@ -144,9 +149,10 @@ class ProductDetailViewModel(
     private val productId: Long,
     private val inventoryRepository: InventoryRepository,
     private val businessRepository: BusinessRepository,
+    private val currentUserIdProvider: () -> Long? = { null },
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      ProductDetailViewModel(productId, inventoryRepository, businessRepository) as T
+      ProductDetailViewModel(productId, inventoryRepository, businessRepository, currentUserIdProvider) as T
   }
 }
