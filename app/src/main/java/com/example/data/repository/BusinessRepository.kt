@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
@@ -62,6 +64,7 @@ class BusinessRepository(
 ) {
   private val businessConfigDao = db.businessConfigDao()
   private val securityDao = db.securityDao()
+  private val systemSeedMutex = Mutex()
   private val catalogDao = db.catalogDao()
   private val inventoryDao = db.inventoryDao()
   private val purchaseDao = db.purchaseDao()
@@ -455,46 +458,41 @@ class BusinessRepository(
    * configuración inicial y al arrancar la app, para que las instalaciones
    * existentes reciban los perfiles nuevos sin reinstalar.
    */
-  suspend fun ensureSystemRolesAndPermissions() {
-    val ownerRoleId = securityDao.getRoleByCode("OWNER")?.id
-      ?: securityDao.insertRole(
-        RoleEntity(
-          code = "OWNER",
-          name = "Propietario",
-          description = "Acceso completo al negocio, costos, ganancias, configuración y respaldos",
-          isSystemDefault = true,
-        ),
-      )
+    suspend fun ensureSystemRolesAndPermissions() {
+          // La siembra puede lanzarse a la vez desde la configuración inicial y
+          // desde el arranque de la app: se serializa para que nunca coincidan dos.
+          systemSeedMutex.withLock {
+                  ensureSystemRolesAndPermissionsLocked()
+          }
+    }
+  
+    private suspend fun ensureSystemRolesAndPermissionsLocked() {
+        val ownerRoleId = roleIdFor(
+                "OWNER",
+                "Propietario",
+                "Acceso completo al negocio, costos, ganancias, configuración y respaldos",
+              )
+        
 
-    val clerkRoleId = securityDao.getRoleByCode("CLERK")?.id
-      ?: securityDao.insertRole(
-        RoleEntity(
-          code = "CLERK",
-          name = "Dependiente",
-          description = "Punto de venta, consulta de productos, cobros e historial propio",
-          isSystemDefault = true,
-        ),
-      )
+        val clerkRoleId = roleIdFor(
+                "CLERK",
+                "Dependiente",
+                "Punto de venta, consulta de productos, cobros e historial propio",
+              )
+        
 
-    val adminRoleId = securityDao.getRoleByCode("ADMIN")?.id
-      ?: securityDao.insertRole(
-        RoleEntity(
-          code = "ADMIN",
-          name = "Administrador",
-          description = "Operación diaria completa: ventas, compras, entradas y salidas, finanzas y reportes. No crea ni da de baja productos, ni administra usuarios ni configuración",
-          isSystemDefault = true,
-        ),
-      )
+        val adminRoleId = roleIdFor(
+                "ADMIN",
+                "Administrador",
+                "Operación diaria completa: ventas, compras, entradas y salidas, finanzas y reportes. No crea ni da de baja productos, ni administra usuarios ni configuración",
+              )
+        
 
-    val warehouseRoleId = securityDao.getRoleByCode("WAREHOUSE")?.id
-      ?: securityDao.insertRole(
-        RoleEntity(
-          code = "WAREHOUSE",
-          name = "Almacenero",
-          description = "Almacén: registrar compras y dar entrada y salida a los productos",
-          isSystemDefault = true,
-        ),
-      )
+        val warehouseRoleId = roleIdFor(
+                "WAREHOUSE",
+                "Almacenero",
+                "Almacén: registrar compras y dar entrada y salida a los productos",
+              )
 
     val allPermissions = listOf(
       Triple("POS_SELL", "Realizar ventas", "POS"),
@@ -523,23 +521,44 @@ class BusinessRepository(
     val warehousePermissionCodes = setOf("PURCHASES_MANAGE", "STOCK_ADJUST")
 
     for ((code, name, module) in allPermissions) {
-      val existingPerm = securityDao.getPermissionByCode(code)
-      val permId = existingPerm?.id ?: securityDao.insertPermission(
-        PermissionEntity(code = code, name = name, module = module),
-      )
-      securityDao.insertRolePermission(RolePermissionCrossRef(roleId = ownerRoleId, permissionId = permId))
-      if (code in clerkPermissionCodes) {
-        securityDao.insertRolePermission(RolePermissionCrossRef(roleId = clerkRoleId, permissionId = permId))
-      }
-      if (code in adminPermissionCodes) {
-        securityDao.insertRolePermission(RolePermissionCrossRef(roleId = adminRoleId, permissionId = permId))
-      }
-      if (code in warehousePermissionCodes) {
-        securityDao.insertRolePermission(RolePermissionCrossRef(roleId = warehouseRoleId, permissionId = permId))
+            val permId = permissionIdFor(code, name, module)
+                if (permId <= 0L) continue
+            if (ownerRoleId > 0L) {
+                      securityDao.insertRolePermission(RolePermissionCrossRef(roleId = ownerRoleId, permissionId = permId))
+            }
+            if (code in clerkPermissionCodes && clerkRoleId > 0L) {
+            securityDao.insertRolePermission(RolePermissionCrossRef(roleId = clerkRoleId, permissionId = permId))
+        }
+            if (code in adminPermissionCodes && adminRoleId > 0L) {
+            securityDao.insertRolePermission(RolePermissionCrossRef(roleId = adminRoleId, permissionId = permId))
+        }
+            if (code in warehousePermissionCodes && warehouseRoleId > 0L) {
+            securityDao.insertRolePermission(RolePermissionCrossRef(roleId = warehouseRoleId, permissionId = permId))
       }
     }
   }
 
+    // Los insert con IGNORE devuelven -1 cuando la fila ya existe (por ejemplo,
+    // si otra siembra la creó primero): ese valor nunca se usa como id, porque
+    // una relación rol-permiso con id -1 rompe la clave foránea. El id válido
+    // se resuelve siempre consultando después de insertar.
+    private suspend fun roleIdFor(code: String, name: String, description: String): Long {
+          securityDao.getRoleByCode(code)?.let { return it.id }
+          val insertedId = securityDao.insertRole(
+                  RoleEntity(code = code, name = name, description = description, isSystemDefault = true),
+                )
+          if (insertedId > 0L) return insertedId
+          return securityDao.getRoleByCode(code)?.id ?: -1L
+      }
+  
+    private suspend fun permissionIdFor(code: String, name: String, module: String): Long {
+          securityDao.getPermissionByCode(code)?.let { return it.id }
+          val insertedId = securityDao.insertPermission(
+                  PermissionEntity(code = code, name = name, module = module),
+                )
+          if (insertedId > 0L) return insertedId
+          return securityDao.getPermissionByCode(code)?.id ?: -1L
+    }
   private fun currencyLabelFor(code: String): String = when (code) {
     "CUP" -> "Peso Cubano"
     "USD" -> "Dólar Estadounidense"
