@@ -628,7 +628,7 @@ fun MainAppShell(
               LicenseActivationScreen(
                 repository = container.licenseRepository,
                 deviceId = licenseState.deviceId,
-                savedLicenseKey = appState.preferences.licenseKey,
+                savedPhone = appState.preferences.licensePhone,
                 onActivated = { navController.popBackStack() },
                 modifier = Modifier.fillMaxSize(),
               )
