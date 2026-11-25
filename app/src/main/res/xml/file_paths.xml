@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Archivos generados para compartir (reportes PDF/Excel) desde la caché de la app -->
+    <cache-path name="report_exports" path="exports/" />
+</paths>
