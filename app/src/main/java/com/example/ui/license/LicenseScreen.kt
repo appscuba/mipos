@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -34,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,9 +65,15 @@ fun LicenseScreen(
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   val context = LocalContext.current
   var copied by remember { mutableStateOf(false) }
+  var showKeyForm by remember { mutableStateOf(false) }
+  val isActive = state.status == "active"
 
   // Al abrir la pantalla se revalida contra LicenseHub si hay clave.
   LaunchedEffect(Unit) { viewModel.checkOnOpen() }
+
+  // Con la licencia activa manda la tarjeta de estado: si el
+  // formulario estaba desplegado («Usar otra clave»), se repliega.
+  LaunchedEffect(isActive) { if (isActive) showKeyForm = false }
 
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     Column(
@@ -93,15 +101,46 @@ fun LicenseScreen(
         }
       }
 
-      Text("Activa tu Stock+", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
       Text(
-        text = "Stock+ funciona con una licencia por periodos (mensual o el tiempo que contrates). " +
-          "Envía a PedritoTech el ID de esta instalación por WhatsApp; cuando registremos tu compra, " +
-          "te enviamos tu clave de licencia: escríbela aquí y pulsa Activar. La clave queda ligada " +
-          "a este dispositivo.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (isActive) "Licencia activa" else "Activa tu Stock+",
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
       )
+      if (!isActive) {
+        Text(
+          text = "Stock+ funciona con una licencia por periodos (mensual o el tiempo que contrates). " +
+            "Envía a PedritoTech el ID de esta instalación por WhatsApp; cuando registremos tu compra, " +
+            "te enviamos tu clave de licencia: escríbela aquí y pulsa Activar. La clave queda ligada " +
+            "a este dispositivo.",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+
+      if (isActive) {
+        Card(
+          shape = MaterialTheme.shapes.medium,
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+          modifier = Modifier.testTag("license_active_card"),
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+          ) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(
+              text = if (state.expiresAt > 0L) {
+                "Tu licencia está activa. Válida hasta el ${formatDate(state.expiresAt)}."
+              } else {
+                "Tu licencia está activa. Licencia permanente."
+              },
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+          }
+        }
+      }
 
       if (state.status == "expired" || state.status == "revoked" || state.status == "suspended") {
         Card(
@@ -161,35 +200,47 @@ fun LicenseScreen(
         }
       }
 
-      OutlinedTextField(
-        value = state.licenseKey,
-        onValueChange = viewModel::onLicenseKeyChange,
-        label = { Text("Tu clave de licencia") },
-        placeholder = { Text("La que te envió PedritoTech") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("license_key_input"),
-      )
-
-      if (state.message != null) {
-        Text(
-          text = state.message.orEmpty(),
-          style = MaterialTheme.typography.bodyMedium,
-          color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+      if (!isActive || showKeyForm) {
+        OutlinedTextField(
+          value = state.licenseKey,
+          onValueChange = viewModel::onLicenseKeyChange,
+          label = { Text("Tu clave de licencia") },
+          placeholder = { Text("La que te envió PedritoTech") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("license_key_input"),
         )
-      }
 
-      Button(
-        onClick = viewModel::activate,
-        enabled = !state.isChecking && state.deviceId.isNotBlank(),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth().height(52.dp).testTag("license_activate_button"),
-      ) {
-        if (state.isChecking) {
-          CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-          Spacer(Modifier.width(8.dp))
-          Text("Comprobando…")
-        } else {
-          Text("Activar", fontWeight = FontWeight.Bold)
+        if (state.message != null) {
+          Text(
+            text = state.message.orEmpty(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (state.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+          )
+        }
+
+        Button(
+          onClick = viewModel::activate,
+          enabled = !state.isChecking && state.deviceId.isNotBlank(),
+          shape = RoundedCornerShape(12.dp),
+          modifier = Modifier.fillMaxWidth().height(52.dp).testTag("license_activate_button"),
+        ) {
+          if (state.isChecking) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(8.dp))
+            Text("Comprobando…")
+          } else {
+            Text("Activar", fontWeight = FontWeight.Bold)
+          }
+        }
+      } else {
+        // Licencia activa y formulario replegado: vía discreta para
+        // escribir otra clave (p. ej. tras desvincular la anterior
+        // en el panel de LicenseHub).
+        TextButton(
+          onClick = { showKeyForm = true },
+          modifier = Modifier.testTag("license_use_another_key_button"),
+        ) {
+          Text("Usar otra clave")
         }
       }
 
