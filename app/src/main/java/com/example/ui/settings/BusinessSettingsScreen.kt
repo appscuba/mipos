@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SupportAgent
@@ -71,7 +72,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanState
 import com.example.ui.theme.ThemeMode
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,6 +85,7 @@ fun BusinessSettingsScreen(
   viewModel: BusinessSettingsViewModel,
   onNavigateToBackups: () -> Unit,
   modifier: Modifier = Modifier,
+  onOpenLicense: () -> Unit = {},
 ) {
   val context = LocalContext.current
   val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,6 +105,94 @@ fun BusinessSettingsScreen(
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+      Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.testTag("settings_plan_card"),
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Icon(
+              Icons.Filled.Key,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+              text = "Tu plan",
+              style = MaterialTheme.typography.titleMedium,
+              fontWeight = FontWeight.Bold,
+            )
+          }
+          when (state.planState) {
+            PlanState.LICENSED -> {
+              Text(
+                text = "Licencia activa",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+              )
+              Text(
+                text = if (state.planLicenseExpiresAt > 0L) {
+                  "Válida hasta el ${formatPlanDate(state.planLicenseExpiresAt)}. " +
+                    "Sin límites de productos, ventas ni clientes."
+                } else {
+                  "Licencia de por vida. Sin límites de productos, ventas ni clientes."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+            PlanState.TRIAL -> {
+              Text(
+                text = "Prueba gratuita",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+              )
+              Text(
+                text = "Te quedan ${state.planTrialDaysRemaining} días de prueba completa, sin límites. " +
+                  "Al terminar pasarás al plan gratuito; activa una licencia para no perder funciones.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+            PlanState.FREE -> {
+              Text(
+                text = "Plan gratuito",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+              )
+              Text(
+                text = "Estás usando Stock+ con límites: ${PlanLimits.MAX_FREE_PRODUCTS} productos, " +
+                  "${PlanLimits.MAX_FREE_SALES_PER_MONTH} ventas al mes y ${PlanLimits.MAX_FREE_CUSTOMERS} clientes. " +
+                  "Reportes, monedas y respaldos requieren licencia.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+          }
+          OutlinedButton(
+            onClick = onOpenLicense,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(48.dp)
+              .testTag("settings_open_license_button"),
+          ) {
+            Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Activar licencia", fontWeight = FontWeight.SemiBold)
+          }
+        }
+      }
+
       Card(
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -539,3 +634,6 @@ private fun openExternalUri(context: android.content.Context, url: String) {
     context.startActivity(intent)
   }
 }
+
+private fun formatPlanDate(epochMs: Long): String =
+  SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(epochMs))
