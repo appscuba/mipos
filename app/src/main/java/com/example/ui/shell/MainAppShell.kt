@@ -594,7 +594,9 @@ fun MainAppShell(
                 prefs.licenseExpiresAt, prefs.lastLicenseValidation, prefs.firstLaunchAt,
               )
               val plan = licenseSnapshot.plan()
-              val planSummary = when (plan) {
+              val planSummary = if (com.example.data.license.PlanLimits.FREE_ACCESS_MODE) {
+                "Acceso completo gratuito — todas las funciones desbloqueadas"
+              } else when (plan) {
                 PlanStatus.LICENSED -> if (prefs.licenseExpiresAt == 0L) "Licencia activa — de por vida" else
                   "Licencia activa — válida hasta " + java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(prefs.licenseExpiresAt))
                 PlanStatus.TRIAL -> "Prueba gratuita — te quedan ${licenseSnapshot.trialDaysRemaining()} días"
