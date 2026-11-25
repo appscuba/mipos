@@ -4,10 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanRules
+import com.example.data.license.PlanState
 import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.local.db.entity.ExchangeRateEntity
 import com.example.data.repository.BusinessRepository
 import com.example.data.repository.CustomerDetailSnapshot
+import com.example.data.preferences.AppPreferencesDataStore
 import com.example.data.repository.FinanceRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,12 +35,14 @@ data class CustomersUiState(
   val selectedDetail: CustomerDetailSnapshot? = null,
   val isSaving: Boolean = false,
   val feedbackMessage: String? = null,
+  val planState: PlanState = PlanState.TRIAL,
 )
 
 class CustomersViewModel(
   private val businessIdFlow: StateFlow<Long>,
   private val financeRepository: FinanceRepository,
   private val businessRepository: BusinessRepository,
+  private val preferences: AppPreferencesDataStore,
   private val currentUserIdProvider: () -> Long? = { null },
 ) : ViewModel() {
 
@@ -54,12 +60,14 @@ class CustomersViewModel(
         financeRepository.observeCustomers(bizId),
         financeRepository.observeExchangeRates(bizId),
         businessRepository.observeWorkspaceSnapshot(),
-      ) { customers, rates, workspace ->
+        preferences.preferencesFlow,
+      ) { customers, rates, workspace, prefs ->
         CustomersDomainBundle(
           businessId = bizId,
           customers = customers,
           rates = rates,
           primaryCurrency = workspace.business?.primaryCurrency ?: "CUP",
+          planState = PlanRules.resolve(prefs, System.currentTimeMillis()),
         )
       }
     }
@@ -107,6 +115,7 @@ class CustomersViewModel(
         selectedDetail = detail,
         isSaving = saving,
         feedbackMessage = msg,
+        planState = bundle.planState,
       )
     }
   }.stateIn(
@@ -137,6 +146,17 @@ class CustomersViewModel(
   ) {
     val bizId = uiState.value.businessId
     if (bizId <= 0L) return
+    // Límite del plan gratuito: solo bloquea clientes NUEVOS.
+    val current = uiState.value
+    if (customerId == null &&
+      current.planState == PlanState.FREE &&
+      current.customers.size >= PlanLimits.MAX_FREE_CUSTOMERS
+    ) {
+      feedbackMessage.value =
+        "Plan gratuito: llegaste a los ${PlanLimits.MAX_FREE_CUSTOMERS} clientes. " +
+          "Activa una licencia para añadir más."
+      return
+    }
     viewModelScope.launch {
       isSaving.value = true
       try {
@@ -313,16 +333,18 @@ class CustomersViewModel(
     val customers: List<CustomerEntity>,
     val rates: List<ExchangeRateEntity>,
     val primaryCurrency: String,
+    val planState: PlanState,
   )
 
   class Factory(
     private val businessIdFlow: StateFlow<Long>,
     private val financeRepository: FinanceRepository,
     private val businessRepository: BusinessRepository,
+    private val preferences: AppPreferencesDataStore,
     private val currentUserIdProvider: () -> Long? = { null },
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      CustomersViewModel(businessIdFlow, financeRepository, businessRepository, currentUserIdProvider) as T
+      CustomersViewModel(businessIdFlow, financeRepository, businessRepository, preferences, currentUserIdProvider) as T
   }
 }
