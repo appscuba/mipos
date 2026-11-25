@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
@@ -30,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -168,34 +171,58 @@ fun LicenseScreen(
         }
       }
 
+      // Tarjeta del ID de instalación: ancho completo y alineada con el
+      // resto del formulario, borde fino ámbar y superficie un punto más
+      // clara que el fondo. El ID es el protagonista; se copia tocando la
+      // tarjeta o el botón de icono.
+      val copyId: () -> Unit = {
+        if (state.deviceId.isNotBlank()) {
+          val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+          clipboard.setPrimaryClip(ClipData.newPlainText("ID Stock+", state.deviceId))
+          copied = true
+        }
+      }
       Card(
+        onClick = copyId,
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
       ) {
         Column(
           modifier = Modifier.padding(16.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-          Text("Tu ID de instalación", style = MaterialTheme.typography.labelLarge)
           Text(
-            text = state.deviceId.ifBlank { "Generando…" },
-            style = MonoMetricMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.testTag("license_device_id"),
+            "TU ID DE INSTALACIÓN",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          OutlinedButton(
-            onClick = {
-              val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-              clipboard.setPrimaryClip(ClipData.newPlainText("ID Stock+", state.deviceId))
-              copied = true
-            },
-            enabled = state.deviceId.isNotBlank(),
-            shape = RoundedCornerShape(10.dp),
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
           ) {
-            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (copied) "¡Copiado!" else "Copiar ID")
+            Text(
+              text = state.deviceId.ifBlank { "Generando…" },
+              style = MonoMetricMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.weight(1f).testTag("license_device_id"),
+            )
+            IconButton(onClick = copyId, enabled = state.deviceId.isNotBlank()) {
+              Icon(
+                if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                contentDescription = "Copiar ID",
+                tint = MaterialTheme.colorScheme.primary,
+              )
+            }
+          }
+          if (copied) {
+            Text(
+              "¡Copiado! Pégalo donde lo necesites.",
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.primary,
+            )
           }
         }
       }
