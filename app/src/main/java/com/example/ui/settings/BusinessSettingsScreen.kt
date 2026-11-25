@@ -196,9 +196,10 @@ fun BusinessSettingsScreen(
       Card(
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
       ) {
         Column(
-          modifier = Modifier.padding(16.dp),
+          modifier = Modifier.fillMaxWidth().padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
           Text("Tema de la aplicación", style = MaterialTheme.typography.titleMedium)
