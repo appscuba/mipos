@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.MainViewModel
+import com.example.ui.license.LicenseViewModel
 import com.example.ui.security.PinLockOverlay
 import com.example.ui.setup.SetupScreen
 import com.example.ui.setup.SetupViewModel
@@ -35,6 +37,18 @@ class MainActivity : ComponentActivity() {
         ),
       )
       val appState by mainVm.appState.collectAsStateWithLifecycle()
+
+      // Licencia comercial (LicenseHub): al cargar el estado se
+      // revalida en silencio si la última validación tiene > 24 h.
+      val licenseVm: LicenseViewModel = viewModel(
+        factory = LicenseViewModel.Factory(
+          context = applicationContext,
+          preferences = container.preferences,
+        ),
+      )
+      LaunchedEffect(appState.isLoaded) {
+        if (appState.isLoaded) licenseVm.refreshIfStale()
+      }
 
       GestorComercialTheme(themeMode = appState.preferences.themeMode) {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -67,6 +81,9 @@ class MainActivity : ComponentActivity() {
               )
             }
             else -> {
+              // Modo freemium: la app abre siempre. Sin licencia corre
+              // la prueba de 15 días y luego el plan gratuito con
+              // límites; la activación vive en la pantalla Licencia.
               MainAppShell(
                 appState = appState,
                 activeBusinessIdFlow = mainVm.activeBusinessId,
