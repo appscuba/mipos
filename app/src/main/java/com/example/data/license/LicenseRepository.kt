@@ -38,6 +38,7 @@ class LicenseRepository(
   }
 
   suspend fun revalidateIfDue() {
+    if (PlanLimits.FREE_ACCESS_MODE) return
     val prefs = preferences.currentLicenseValues()
     if (prefs.installationId.isBlank() || prefs.licensePhone.isBlank() || prefs.licenseStatus != "active") return
     val now = System.currentTimeMillis()
