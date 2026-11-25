@@ -379,7 +379,17 @@ class ExampleRobolectricTest {
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("reports_list").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithTag("reports_list").performScrollToNode(hasTestTag("report_net_profit"))
+    // La tarjeta de ganancia neta puede tardar en entrar en la lista
+    // (los datos de Reportes cargan asíncronos): se reintenta el
+    // desplazamiento hasta que aparezca, en vez de fallar a la primera.
+    composeTestRule.waitUntil(timeoutMillis = 15_000) {
+      try {
+        composeTestRule.onNodeWithTag("reports_list").performScrollToNode(hasTestTag("report_net_profit"))
+        true
+      } catch (e: AssertionError) {
+        false
+      }
+    }
     composeTestRule.onNodeWithTag("report_net_profit").assertIsDisplayed()
 
     composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
