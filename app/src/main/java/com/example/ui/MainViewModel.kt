@@ -41,8 +41,9 @@ class MainViewModel(
   init {
     // Siembra de roles y permisos también en instalaciones existentes:
     // los perfiles nuevos (Administrador, Almacenero) aparecen sin reinstalar.
+    // Un fallo de la siembra nunca debe tumbar el arranque de la app.
     viewModelScope.launch {
-      businessRepository.ensureSystemRolesAndPermissions()
+      runCatching { businessRepository.ensureSystemRolesAndPermissions() }
     }
   }
 
