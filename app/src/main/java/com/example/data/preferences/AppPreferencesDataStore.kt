@@ -123,9 +123,10 @@ class AppPreferencesDataStore(context: Context) {
   suspend fun currentInstallationId(): String =
     dataStore.data.map { it[Keys.INSTALLATION_ID] ?: "" }.first()
 
-  suspend fun saveLicenseResult(licenseKey: String, status: String, expiresAt: Long, validatedAt: Long) {
+  suspend fun saveLicenseResult(phone: String, status: String, expiresAt: Long, validatedAt: Long) {
     dataStore.edit { prefs ->
-      prefs[Keys.LICENSE_KEY] = licenseKey
+      prefs[Keys.LICENSE_PHONE] = phone
+      prefs.remove(Keys.LICENSE_KEY)
       prefs[Keys.LICENSE_STATUS] = status
       prefs[Keys.LICENSE_EXPIRES_AT] = expiresAt
       prefs[Keys.LAST_LICENSE_VALIDATION] = validatedAt
