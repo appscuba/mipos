@@ -46,37 +46,42 @@ class Phase4PosAndSalesTest {
   private var businessId: Long = 0L
 
   @Before
-  fun setUp() = runBlocking {
-    context = ApplicationProvider.getApplicationContext()
-    db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-      .allowMainThreadQueries()
-      .build()
-    prefs = AppPreferencesDataStore(context)
-    businessRepo = BusinessRepository(db = db, preferences = prefs)
-    inventoryRepo = InventoryRepository(db = db)
-    purchaseRepo = PurchaseRepository(db = db)
-    saleRepo = SaleRepository(db = db)
+  fun setUp() {
+    // Block body on purpose: JUnit requires @Before methods to return void.
+    // An expression body ending in openCashSession(...) would return its Long
+    // result and the whole class would fail with InvalidTestClassError.
+    runBlocking {
+      context = ApplicationProvider.getApplicationContext()
+      db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        .allowMainThreadQueries()
+        .build()
+      prefs = AppPreferencesDataStore(context)
+      businessRepo = BusinessRepository(db = db, preferences = prefs)
+      inventoryRepo = InventoryRepository(db = db)
+      purchaseRepo = PurchaseRepository(db = db)
+      saleRepo = SaleRepository(db = db)
 
-    businessId = businessRepo.completeInitialSetup(
-      InitialBusinessSetupRequest(
-        businessName = "Minimercado Victoria",
-        businessType = "Tienda / Bodega",
-        logoUri = null,
-        phone = "555-9000",
-        email = "",
-        address = "Calle 10 #45",
-        primaryCurrency = "CUP",
-        secondaryCurrencyCode = "USD",
-        secondaryCurrencyRate = BigDecimal("320.00"),
-        gramsPerPound = BigDecimal("500"),
-        allowNegativeStock = false,
-      ),
-    )
+      businessId = businessRepo.completeInitialSetup(
+        InitialBusinessSetupRequest(
+          businessName = "Minimercado Victoria",
+          businessType = "Tienda / Bodega",
+          logoUri = null,
+          phone = "555-9000",
+          email = "",
+          address = "Calle 10 #45",
+          primaryCurrency = "CUP",
+          secondaryCurrencyCode = "USD",
+          secondaryCurrencyRate = BigDecimal("320.00"),
+          gramsPerPound = BigDecimal("500"),
+          allowNegativeStock = false,
+        ),
+      )
 
-    // Every POS test starts with a valid cash session because sales now require
-    // an explicit opening, exactly like the production workflow.
-    com.example.data.repository.FinanceRepository(db)
-      .openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+      // Every POS test starts with a valid cash session because sales now require
+      // an explicit opening, exactly like the production workflow.
+      com.example.data.repository.FinanceRepository(db)
+        .openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+    }
   }
 
   @After
