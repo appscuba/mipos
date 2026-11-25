@@ -597,7 +597,6 @@ fun MainAppShell(
             composable<AppDestination.BusinessSettings> {
               val settingsVm: BusinessSettingsViewModel = viewModel(
                 factory = BusinessSettingsViewModel.Factory(
-                  businessIdFlow = activeBusinessIdFlow,
                   businessRepository = container.businessRepository,
                   preferences = container.preferences,
                 ),
