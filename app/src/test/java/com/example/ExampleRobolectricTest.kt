@@ -3,6 +3,7 @@ package com.example
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -376,8 +377,10 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("drawer_reports").performScrollTo().performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule.onAllNodesWithTag("report_net_profit").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithTag("reports_list").fetchSemanticsNodes().isNotEmpty()
     }
+    composeTestRule.onNodeWithTag("reports_list").performScrollToNode(hasTestTag("report_net_profit"))
+    composeTestRule.onNodeWithTag("report_net_profit").assertIsDisplayed()
 
     composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
