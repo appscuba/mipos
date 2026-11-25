@@ -139,6 +139,28 @@ fun PosCheckoutDialog(
         }
         HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
 
+        // Aviso de error ENCIMA del contenido (p. ej. «Debes abrir la
+        // caja diaria…» al confirmar la venta): antes salía en el
+        // snackbar de la pantalla, detrás de este diálogo, y solo se
+        // veía al salir de finalizar la compra.
+        if (state.feedbackIsError && state.feedbackMessage != null) {
+          Surface(
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(bottom = 8.dp)
+              .testTag("pos_checkout_error_banner"),
+          ) {
+            Text(
+              text = state.feedbackMessage,
+              style = MaterialTheme.typography.bodyMedium,
+              modifier = Modifier.padding(12.dp),
+            )
+          }
+        }
+
         PosCartCheckoutContent(
           state = state,
           onUpdateQty = onUpdateQty,

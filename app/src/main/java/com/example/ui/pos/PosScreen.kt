@@ -91,7 +91,11 @@ fun PosScreen(
 
   LaunchedEffect(state.feedbackMessage) {
     val msg = state.feedbackMessage
-    if (msg != null) {
+    // Con el diálogo de cobro abierto, un error se muestra DENTRO del
+    // diálogo (encima de todo): el snackbar quedaría detrás y solo se
+    // vería al salir. En ese caso el aviso lo pinta el propio diálogo
+    // y se limpia al cerrarlo.
+    if (msg != null && !(showCheckoutDialog && state.feedbackIsError)) {
       snackbarHostState.showSnackbar(msg)
       viewModel.clearFeedback()
     }
@@ -296,7 +300,10 @@ fun PosScreen(
           showCheckoutDialog = false
         }
       },
-      onDismiss = { showCheckoutDialog = false },
+      onDismiss = {
+        showCheckoutDialog = false
+        viewModel.clearFeedback()
+      },
     )
   }
 
