@@ -9,6 +9,7 @@ import com.example.data.local.db.entity.BusinessEntity
 import com.example.data.local.db.entity.CashMovementEntity
 import com.example.data.local.db.entity.CashSessionEntity
 import com.example.data.local.db.entity.CustomerEntity
+import com.example.data.local.db.entity.ExpenseCategoryEntity
 import com.example.data.local.db.entity.ExpenseEntity
 import com.example.data.local.db.entity.PaymentEntity
 import com.example.data.local.db.entity.ProductEntity
@@ -40,6 +41,11 @@ data class ProductProfitabilityRow(
   val marginPercent: BigDecimal,
 )
 
+data class ExpenseCategoryTotal(
+  val categoryName: String,
+  val totalBase: BigDecimal,
+)
+
 data class BusinessReportSnapshot(
   val primaryCurrency: String,
   val salesCount: Int,
@@ -62,6 +68,7 @@ data class BusinessReportSnapshot(
   val supplierPayableBase: BigDecimal,
   val productProfitability: List<ProductProfitabilityRow>,
   val paymentMethodTotals: Map<String, BigDecimal>,
+  val expensesByCategory: List<ExpenseCategoryTotal> = emptyList(),
 )
 
 class ReportsRepository(private val db: AppDatabase) {
@@ -87,6 +94,7 @@ class ReportsRepository(private val db: AppDatabase) {
     financeDao.observeOpenCashSession(businessId),
     financeDao.observeActiveCustomers(businessId),
     financeDao.observeActiveSuppliersForFinance(businessId),
+    financeDao.observeAllExpenseCategories(businessId),
   ) { values ->
     val business = values[0] as BusinessEntity?
     val settings = values[1] as AppSettingsEntity?
@@ -109,6 +117,8 @@ class ReportsRepository(private val db: AppDatabase) {
     val customers = values[10] as List<CustomerEntity>
     @Suppress("UNCHECKED_CAST")
     val suppliers = values[11] as List<SupplierEntity>
+    @Suppress("UNCHECKED_CAST")
+    val expenseCategories = values[12] as List<ExpenseCategoryEntity>
 
     val periodSales = validSales.filter { it.saleDate in startMillis..endMillis }
     val periodSaleIds = periodSales.map { it.id }.toSet()
@@ -207,6 +217,19 @@ class ReportsRepository(private val db: AppDatabase) {
       )
     }.sortedByDescending { it.grossProfitBase }
 
+    // Desglose de gastos del período por categoría (Salarios, Alquiler, ...):
+    // la suma de este desglose es exactamente operatingExpensesBase.
+    val expenseCategoryNames = expenseCategories.associate { it.id to it.name }
+    val expensesByCategory = periodExpenses
+      .groupBy { it.expenseCategoryId }
+      .map { (categoryId, catExpenses) ->
+        ExpenseCategoryTotal(
+          categoryName = expenseCategoryNames[categoryId] ?: "General",
+          totalBase = catExpenses.fold(MoneyMath.ZERO) { acc, e -> MoneyMath.add(acc, e.convertedAmountBase) },
+        )
+      }
+      .sortedByDescending { it.totalBase }
+
     val paymentBreakdown = linkedMapOf<String, BigDecimal>()
     for (p in periodPayments) {
       val current = paymentBreakdown[p.paymentMethod] ?: MoneyMath.ZERO
@@ -235,6 +258,7 @@ class ReportsRepository(private val db: AppDatabase) {
       supplierPayableBase = payable,
       productProfitability = productRows,
       paymentMethodTotals = paymentBreakdown,
+      expensesByCategory = expensesByCategory,
     )
   }
 
@@ -303,6 +327,9 @@ class ReportsRepository(private val db: AppDatabase) {
       appendLine("Costo de mercancía vendida: ${MoneyMath.format(snapshot.cogsBase, cur)}")
       appendLine("Ganancia bruta (${snapshot.grossMarginPercent}%): ${MoneyMath.format(snapshot.grossProfitBase, cur)}")
       appendLine("Gastos operativos (${snapshot.expensesCount}): ${MoneyMath.format(snapshot.operatingExpensesBase, cur)}")
+      snapshot.expensesByCategory.forEach { row ->
+        appendLine("  - ${row.categoryName}: ${MoneyMath.format(row.totalBase, cur)}")
+      }
       appendLine("GANANCIA NETA (${snapshot.netMarginPercent}%): ${MoneyMath.format(snapshot.netProfitBase, cur)}")
       appendLine("----------------------------------------")
       appendLine("Compras del período (${snapshot.purchasesCount}): ${MoneyMath.format(snapshot.totalPurchasesBase, cur)}")
