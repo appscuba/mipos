@@ -121,18 +121,18 @@ fun ReportExportModel.toXlsxRows(): List<List<XlsxCell>> {
   if (periodRangeText != null) rows += listOf(XlsxCell.Text("Rango: $periodRangeText"))
   rows += listOf(XlsxCell.Text("Generado: $generatedAtText"))
   rows += listOf(XlsxCell.Text("Moneda: $currency"))
-  rows += emptyList()
+  rows += emptyList<XlsxCell>()
   rows += listOf(XlsxCell.Text("ESTADO DE RESULTADOS"))
   summaryEntries.forEach { rows += entryRow(it) }
-  rows += emptyList()
+  rows += emptyList<XlsxCell>()
   rows += listOf(XlsxCell.Text("BALANCE ACTUAL"))
   balanceEntries.forEach { rows += entryRow(it) }
   if (paymentEntries.isNotEmpty()) {
-    rows += emptyList()
+    rows += emptyList<XlsxCell>()
     rows += listOf(XlsxCell.Text("INGRESOS POR FORMA DE PAGO"))
     paymentEntries.forEach { rows += entryRow(it) }
   }
-  rows += emptyList()
+  rows += emptyList<XlsxCell>()
   rows += listOf(XlsxCell.Text("RENTABILIDAD POR PRODUCTO"))
   rows += listOf(
     XlsxCell.Text("Producto"),
