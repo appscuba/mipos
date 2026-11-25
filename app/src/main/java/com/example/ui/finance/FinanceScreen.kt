@@ -167,41 +167,46 @@ fun FinanceScreen(
                   valueTag = "finance_operating_expenses",
                 )
               }
+
               HorizontalDivider()
+              // La ganancia neta va a ancho completo: compartir renglón con
+              // «Por cobrar / Por pagar» montaba un importe sobre el otro.
+              Column {
+                Text(
+                  "Ganancia neta",
+                  style = MaterialTheme.typography.labelMedium,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                  text = MoneyMath.format(state.netProfitBase, state.primaryCurrency),
+                  style = MonoMetricLarge,
+                  fontWeight = FontWeight.Bold,
+                  maxLines = 1,
+                  softWrap = false,
+                  color = if (state.netProfitBase >= BigDecimal.ZERO) {
+                    MaterialTheme.colorScheme.tertiary
+                  } else {
+                    MaterialTheme.colorScheme.error
+                  },
+                  modifier = Modifier.testTag("finance_net_profit"),
+                )
+              }
               Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
               ) {
-                Column {
-                  Text(
-                    "Ganancia neta",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  )
-                  Text(
-                    text = MoneyMath.format(state.netProfitBase, state.primaryCurrency),
-                    style = MonoMetricLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (state.netProfitBase >= BigDecimal.ZERO) {
-                      MaterialTheme.colorScheme.tertiary
-                    } else {
-                      MaterialTheme.colorScheme.error
-                    },
-                    modifier = Modifier.testTag("finance_net_profit"),
-                  )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                  Text(
-                    "Por cobrar / Por pagar",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  )
-                  Text(
-                    text = "${MoneyMath.format(state.customerReceivableBase, state.primaryCurrency)} / ${MoneyMath.format(state.supplierPayableBase, state.primaryCurrency)}",
-                    style = MonoMetricMedium,
-                  )
-                }
+                FinanceMetricBox(
+                  label = "Por cobrar",
+                  value = MoneyMath.format(state.customerReceivableBase, state.primaryCurrency),
+                  color = MaterialTheme.colorScheme.onSurface,
+                  modifier = Modifier.weight(1f),
+                )
+                FinanceMetricBox(
+                  label = "Por pagar",
+                  value = MoneyMath.format(state.supplierPayableBase, state.primaryCurrency),
+                  color = MaterialTheme.colorScheme.onSurface,
+                  modifier = Modifier.weight(1f),
+                )
               }
               Text(
                 text = "Capital aportado: ${MoneyMath.format(state.totalInvestmentsBase, state.primaryCurrency)} • Ingresos extra: ${MoneyMath.format(state.totalExtraIncomeBase, state.primaryCurrency)} • Retiros: ${MoneyMath.format(state.totalOwnerWithdrawalsBase, state.primaryCurrency)}",
