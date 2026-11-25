@@ -164,7 +164,7 @@ class SaleRepository(private val db: AppDatabase) {
       // inside the transaction so no sale or stock movement can be recorded
       // when the cashier has not opened the drawer.
       val openCashSession = saleDao.getOpenCashSession(request.businessId)
-        ?: error("Debes abrir la caja antes de registrar una venta.")
+        ?: error("Debes iniciar la caja antes de realizar una venta. Ve a la sección Caja y pulsa «Abrir caja».")
 
       val business = businessConfigDao.getBusinessById(request.businessId)
         ?: error("Negocio no encontrado.")
