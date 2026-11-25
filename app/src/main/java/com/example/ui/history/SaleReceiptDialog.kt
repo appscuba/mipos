@@ -47,19 +47,21 @@ fun SaleReceiptDialog(
   business: BusinessEntity?,
   saleWithDetails: SaleWithDetails,
   onDismiss: () -> Unit,
+  freeVersionFooter: Boolean = false,
 ) {
   val context = LocalContext.current
   @Suppress("DEPRECATION")
   val clipboardManager = LocalClipboardManager.current
   var copied by remember { mutableStateOf(false) }
 
-  val receiptText = remember(business, saleWithDetails) {
+  val receiptText = remember(business, saleWithDetails, freeVersionFooter) {
     ReceiptFormatter.buildTextReceipt(
       business = business,
       sale = saleWithDetails.sale,
       details = saleWithDetails.details,
       payments = saleWithDetails.payments,
       customerName = saleWithDetails.customerName,
+      freeVersionFooter = freeVersionFooter,
     )
   }
 
