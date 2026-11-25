@@ -101,6 +101,9 @@ class Phase6ReportsAndCurrenciesTest {
       ),
     )
 
+    // Las ventas exigen una sesión de caja abierta, igual que en producción.
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+
     // Vender 2 lb = 1100 CUP, costo = 800 CUP, ganancia bruta = 300 CUP; inventario restante = 8 lb * 400 = 3200 CUP
     saleRepo.confirmSale(
       ConfirmSaleRequest(
