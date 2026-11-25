@@ -537,18 +537,13 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
 
-    // Esperar primero al diálogo y al contenedor desplazable. Los chips de pago
-    // pueden quedar fuera del viewport y no aparecer en el árbol semántico hasta
-    // desplazar el contenido; por eso no se deben exigir antes del scroll.
-    composeTestRule.waitUntil(timeoutMillis = 15_000) {
-      composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
+    // El selector de forma de pago aparece al inicio del contenido del checkout.
+    // Buscar por su texto evita depender del testTag de un FilterChip dentro de FlowRow,
+    // cuyo nodo puede no quedar expuesto de forma estable en Robolectric al desplazar.
+    composeTestRule.waitUntil(timeoutMillis = 10_000) {
+      composeTestRule.onAllNodesWithText("Crédito").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithTag("pos_checkout_scroll")
-      .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
-    }
-    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
+    composeTestRule.onNodeWithText("Crédito").performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
