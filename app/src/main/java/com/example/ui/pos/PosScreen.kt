@@ -68,6 +68,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.money.MoneyMath
 import com.example.core.units.UnitConverter
+import com.example.data.license.PlanState
 import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.repository.ProductModality
 import com.example.data.repository.ProductWithDetails
@@ -304,6 +305,7 @@ fun PosScreen(
       business = state.business,
       saleWithDetails = saleWithDetails,
       onDismiss = viewModel::dismissReceipt,
+      freeVersionFooter = state.planState == PlanState.FREE,
     )
   }
 }
