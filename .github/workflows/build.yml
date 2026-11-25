@@ -9,13 +9,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      BUILD_VERSION_CODE: ${{ github.run_number + 1000 }}
       KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
       STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
+
+      - name: Calcular el código de versión
+        run: echo "BUILD_VERSION_CODE=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
 
       - name: Instalar Java 21
         uses: actions/setup-java@v4
