@@ -37,6 +37,15 @@ jobs:
       - name: Ejecutar pruebas unitarias y Robolectric
         run: ./gradlew :app:testDebugUnitTest
 
+      - name: Subir el informe de pruebas si fallan
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            app/build/test-results/**
+            app/build/reports/**
+          if-no-files-found: ignore
       - name: Compilar APK Debug
         run: ./gradlew :app:assembleDebug
 
