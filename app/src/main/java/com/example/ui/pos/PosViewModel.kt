@@ -390,7 +390,18 @@ class PosViewModel(
   ) {
     val state = uiState.value
     val currentDraft = draft.value
-    if (state.businessId <= 0L || currentDraft.isSaving) return
+    if (currentDraft.isSaving) {
+      draft.update { it.copy(feedbackMessage = "La venta ya se está procesando. Espera un momento.") }
+      return
+    }
+    if (state.businessId <= 0L) {
+      draft.update { it.copy(feedbackMessage = "No se pudo iniciar la venta: el negocio todavía no está cargado. Vuelve a entrar al punto de venta.") }
+      return
+    }
+    if (state.cartItems.isEmpty()) {
+      draft.update { it.copy(feedbackMessage = "Agrega al menos un producto antes de finalizar la compra.") }
+      return
+    }
 
     viewModelScope.launch {
       draft.update { it.copy(isSaving = true) }
