@@ -537,18 +537,16 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
 
-    // El selector está dentro de la columna desplazable del checkout.
-    // Desplazamos ese contenedor explícitamente para que el FilterChip quede visible
-    // antes de interactuar con él (Robolectric no siempre expone los nodos fuera de viewport).
+    // Desplazar el propio chip mediante su ancestro scrollable.
+    // Esto evita depender de que Robolectric publique el tag del contenedor
+    // como nodo independiente en la raíz de ventana del Dialog.
     composeTestRule.waitUntil(timeoutMillis = 10_000) {
-      composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
-    }
-    composeTestRule.onNodeWithTag("pos_checkout_scroll")
-      .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").assertIsDisplayed().performClick()
+    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT")
+      .performScrollTo()
+      .assertIsDisplayed()
+      .performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
