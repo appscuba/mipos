@@ -14,7 +14,10 @@ android {
     applicationId = "com.aistudio.gestorcomercial.rtxqpm"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
+    // En GitHub Actions, BUILD_VERSION_CODE = 1000 + nº de corrida:
+    // sube solo en cada compilación, para que Android acepte cada
+    // APK nuevo como actualización encima del instalado.
+    versionCode = System.getenv("BUILD_VERSION_CODE")?.toIntOrNull() ?: 1
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
