@@ -271,6 +271,8 @@ class InventoryRepository(private val db: AppDatabase) {
   }
 
   suspend fun saveProduct(request: SaveProductRequest): Long {
+    // Crear o editar productos es solo del Propietario (permiso PRODUCTS_MANAGE).
+    requireUserPermission(request.userId, AppPermissions.PRODUCTS_MANAGE)
     val cleanName = request.name.trim()
     require(cleanName.isNotEmpty()) { "El nombre del producto es obligatorio." }
     require(request.salePrice >= BigDecimal.ZERO) { "El precio de venta no puede ser negativo." }
@@ -480,6 +482,8 @@ class InventoryRepository(private val db: AppDatabase) {
       require(request.enteredQuantity > BigDecimal.ZERO) { "La cantidad debe ser mayor que cero." }
     }
     require(request.conversionFactorToBase > BigDecimal.ZERO) { "La equivalencia aplicada debe ser positiva." }
+    // Entradas y salidas manuales: Propietario, Administrador y Almacenero.
+    requireUserPermission(request.userId, AppPermissions.STOCK_ADJUST)
     val reason = request.reason.trim().ifEmpty { "Ajuste manual de inventario" }
     val now = System.currentTimeMillis()
 
@@ -560,7 +564,25 @@ class InventoryRepository(private val db: AppDatabase) {
     }
   }
 
+  /**
+   * Defensa en profundidad: las pantallas ocultan las acciones sin permiso,
+   * pero el repositorio también lo exige cuando la operación trae usuario.
+   * Sin usuario (flujos internos y configuración inicial) no se bloquea.
+   */
+  private suspend fun requireUserPermission(userId: Long?, permissionCode: String) {
+    if (userId == null || userId <= 0L) return
+    val user = securityDao.getUserById(userId) ?: return
+    val role = securityDao.getRoleById(user.roleId) ?: return
+    if (role.code == "OWNER") return
+    val perms = securityDao.getPermissionsForRole(role.id).map { it.code }.toSet()
+    require(permissionCode in perms) {
+      "Tu perfil (${role.name}) no tiene permiso para realizar esta operación ($permissionCode)."
+    }
+  }
+
   suspend fun archiveProduct(businessId: Long, productId: Long, userId: Long? = null) {
+    // Dar de baja un producto es solo del Propietario (permiso PRODUCTS_MANAGE).
+    requireUserPermission(userId, AppPermissions.PRODUCTS_MANAGE)
     db.withTransaction {
       val product = inventoryDao.getProductById(productId) ?: return@withTransaction
       inventoryDao.deactivateProduct(productId, System.currentTimeMillis())
