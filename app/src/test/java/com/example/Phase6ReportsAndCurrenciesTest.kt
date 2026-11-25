@@ -143,6 +143,31 @@ class Phase6ReportsAndCurrenciesTest {
     val textExport = ReportsRepository.formatExportSummary(report, "Comercial Horizonte", "Hoy")
     assertTrue(textExport.contains("GANANCIA NETA"))
     assertTrue(textExport.contains("Arroz"))
+
+    // Salarios: gasto de la categoría Salarios entra al desglose y reduce la ganancia neta
+    val salariosCat = db.financeDao().observeActiveExpenseCategories(businessId).first()
+      .first { it.name == "Salarios" }
+    financeRepo.recordExpense(
+      businessId = businessId,
+      expenseCategoryId = salariosCat.id,
+      description = "Salario del dependiente",
+      currencyCode = "CUP",
+      originalAmount = BigDecimal("150.00"),
+      exchangeRateToBase = BigDecimal.ONE,
+      paymentMethod = "CASH",
+      paidFromCashDrawer = false,
+    )
+    val report2 = reportsRepo.observeReport(businessId, start, end).first()
+    assertEquals(0, BigDecimal("250.00").compareTo(report2.operatingExpensesBase))
+    assertEquals(0, BigDecimal("50.00").compareTo(report2.netProfitBase))
+    val byCategory = report2.expensesByCategory.associate { it.categoryName to it.totalBase }
+    assertEquals(0, BigDecimal("150.00").compareTo(byCategory.getValue("Salarios")))
+    assertEquals(0, BigDecimal("100.00").compareTo(byCategory.getValue("Alquiler")))
+    // El desglose por categoría suma exactamente el total de gastos operativos
+    val breakdownSum = report2.expensesByCategory.fold(BigDecimal.ZERO) { acc, row -> acc.add(row.totalBase) }
+    assertEquals(0, report2.operatingExpensesBase.compareTo(breakdownSum))
+    val export2 = ReportsRepository.formatExportSummary(report2, "Comercial Horizonte", "Hoy")
+    assertTrue(export2.contains("Salarios"))
   }
 
   @Test
