@@ -86,6 +86,33 @@ class ReportsViewModel(
     return ReportsRepository.formatExportSummary(snapshot, state.businessName, label)
   }
 
+  /** Modelo con los datos del reporte listos para exportar a PDF o Excel. */
+  fun buildExportModel(): ReportExportModel? {
+    val state = uiState.value
+    val snapshot = state.report ?: return null
+    val label = if (state.customRangeMillis != null) "Rango personalizado" else state.selectedPreset.label
+    return ReportExportBuilder.build(
+      snapshot = snapshot,
+      businessName = state.businessName,
+      periodLabel = label,
+      periodRangeText = periodRangeText(state),
+      generatedAtMillis = System.currentTimeMillis(),
+    )
+  }
+
+  private fun periodRangeText(state: ReportsUiState): String? {
+    val range = state.customRangeMillis
+      ?: if (state.selectedPreset == ReportPeriodPreset.ALL) {
+        null
+      } else {
+        ReportsRepository.dateRangeForPreset(state.selectedPreset)
+      }
+      ?: return null
+    if (range.first <= 0L || range.second == Long.MAX_VALUE) return null
+    val format = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.US)
+    return "${format.format(java.util.Date(range.first))} – ${format.format(java.util.Date(range.second))}"
+  }
+
   class Factory(
     private val businessIdFlow: StateFlow<Long>,
     private val reportsRepository: ReportsRepository,
