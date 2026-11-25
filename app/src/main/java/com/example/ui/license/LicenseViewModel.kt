@@ -1,9 +1,11 @@
 package com.example.ui.license
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.license.LicenseCountdown
 import com.example.data.license.LicenseManager
 import com.example.data.preferences.AppPreferencesDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +46,21 @@ class LicenseViewModel(
         deviceId = prefs.licenseDeviceId,
         licenseKey = d.keyInput ?: prefs.licenseKey,
         status = prefs.licenseStatus,
-        expiresAt = prefs.licenseExpiresAt,
+        // La fecha mostrada sale de la cuenta regresiva (restante
+        // real), no de la hora del sistema: «ahora» de pared más el
+        // tiempo que le queda a la licencia según el ancla.
+        expiresAt = when {
+          prefs.licenseExpiresAt <= 0L -> 0L
+          prefs.licenseAnchorRemainingMs >= 0L ->
+            LicenseCountdown.estimatedExpiryWallMs(
+              anchorRemainingMs = prefs.licenseAnchorRemainingMs,
+              anchorElapsedMs = prefs.licenseAnchorElapsedMs,
+              anchorWallMs = prefs.licenseAnchorWallMs,
+              nowElapsedMs = SystemClock.elapsedRealtime(),
+              nowWallMs = System.currentTimeMillis(),
+            )
+          else -> prefs.licenseExpiresAt
+        },
         isChecking = d.isChecking,
         message = d.message,
         isError = d.isError,
@@ -103,9 +119,9 @@ class LicenseViewModel(
   }
 
   /**
-   * Al abrir la app: si la última validación tiene más de 24 h, se
-   * reconsulta en silencio. Sin conexión no pasa nada: manda el
-   * grant offline firmado (48 h) de LicenseRules.
+   * Al abrir la app: se re-ancla la cuenta regresiva y, si la última
+   * validación tiene más de 24 h, se reconsulta en silencio. Sin
+   * conexión no pasa nada: manda la cuenta regresiva de LicenseRules.
    */
   fun refreshIfStale() {
     viewModelScope.launch { licenseManager.refreshIfStale() }

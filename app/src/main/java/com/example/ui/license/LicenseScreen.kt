@@ -285,9 +285,9 @@ fun LicenseScreen(
       }
 
       Text(
-        text = "La licencia se valida contra LicenseHub y queda ligada a este dispositivo. " +
-          "Sin conexión, una licencia ya activa sigue funcionando hasta 48 horas con la " +
-          "autorización firmada del servidor.",
+        text = "La licencia se valida una vez contra LicenseHub y queda ligada a este " +
+          "dispositivo. Después el tiempo corre en tu teléfono, protegido contra " +
+          "cambios de hora; al conectarte, la app vuelve a confirmarla con el servidor.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
