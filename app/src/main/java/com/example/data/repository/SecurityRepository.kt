@@ -239,6 +239,74 @@ class SecurityRepository(
     }
   }
 
+  suspend fun updateUserProfile(
+    businessId: Long,
+    targetUserId: Long,
+    fullName: String,
+    username: String,
+    roleCode: String,
+    actorUserId: Long? = null,
+  ) {
+    requirePermission(actorUserId, AppPermissions.USERS_MANAGE)
+    val cleanName = fullName.trim()
+    val cleanUser = username.trim().lowercase()
+    require(cleanName.isNotEmpty()) { "El nombre completo es obligatorio." }
+    require(cleanUser.length >= 3) { "El usuario debe tener al menos 3 caracteres." }
+
+    db.withTransaction {
+      val target = securityDao.getUserById(targetUserId) ?: error("Usuario no encontrado.")
+      val newRole = securityDao.getRoleByCode(roleCode) ?: error("Rol '$roleCode' no encontrado.")
+      val duplicate = securityDao.getUserByUsername(businessId, cleanUser)
+      require(duplicate == null || duplicate.id == targetUserId) {
+        "Ya existe un usuario con el identificador '$cleanUser'."
+      }
+      val ownerRole = securityDao.getRoleByCode("OWNER")
+      if (ownerRole != null && target.roleId == ownerRole.id && newRole.id != ownerRole.id && target.isActive) {
+        val activeOwners = securityDao.countActiveUsersByRole(businessId, ownerRole.id)
+        require(activeOwners > 1) { "Debe permanecer al menos un Propietario activo." }
+      }
+      securityDao.updateUser(target.copy(fullName = cleanName, username = cleanUser, roleId = newRole.id))
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          userId = actorUserId,
+          action = "USER_UPDATED",
+          entityType = "USER",
+          entityId = targetUserId,
+          details = "Usuario actualizado: '$cleanName' (@$cleanUser) con rol ${newRole.name}",
+        ),
+      )
+    }
+  }
+
+  suspend fun deleteUser(
+    businessId: Long,
+    targetUserId: Long,
+    actorUserId: Long? = null,
+  ) {
+    requirePermission(actorUserId, AppPermissions.USERS_MANAGE)
+    db.withTransaction {
+      val target = securityDao.getUserById(targetUserId) ?: error("Usuario no encontrado.")
+      require(targetUserId != actorUserId) { "No puedes eliminar el usuario activo en sesión." }
+      val ownerRole = securityDao.getRoleByCode("OWNER")
+      if (ownerRole != null && target.roleId == ownerRole.id && target.isActive) {
+        val activeOwners = securityDao.countActiveUsersByRole(businessId, ownerRole.id)
+        require(activeOwners > 1) { "Debe permanecer al menos un Propietario activo." }
+      }
+      securityDao.deleteUserById(targetUserId)
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          userId = actorUserId,
+          action = "USER_DELETED",
+          entityType = "USER",
+          entityId = targetUserId,
+          details = "Usuario '${target.fullName}' (@${target.username}) eliminado",
+        ),
+      )
+    }
+  }
+
   suspend fun switchUser(
     businessId: Long,
     targetUserId: Long,
