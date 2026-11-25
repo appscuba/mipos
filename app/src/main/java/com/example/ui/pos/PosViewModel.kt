@@ -6,10 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.core.cost.CostEngine
 import com.example.core.money.MoneyMath
 import com.example.core.units.UnitConverter
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanRules
+import com.example.data.license.PlanState
 import com.example.data.local.db.entity.BusinessEntity
 import com.example.data.local.db.entity.CategoryEntity
 import com.example.data.local.db.entity.CustomerEntity
 import com.example.data.local.db.entity.ExchangeRateEntity
+import com.example.data.preferences.AppPreferencesDataStore
 import com.example.data.repository.BusinessRepository
 import com.example.data.repository.BusinessWorkspaceSnapshot
 import com.example.data.repository.ConfirmSaleRequest
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.Calendar
 import java.util.UUID
 
 data class PosCartItem(
@@ -96,6 +101,8 @@ data class PosUiState(
   val isSaving: Boolean = false,
   val feedbackMessage: String? = null,
   val completedSale: SaleWithDetails? = null,
+  val planState: PlanState = PlanState.TRIAL,
+  val salesThisMonth: Int = 0,
 )
 
 class PosViewModel(
@@ -103,6 +110,7 @@ class PosViewModel(
   private val saleRepository: SaleRepository,
   private val inventoryRepository: InventoryRepository,
   private val businessRepository: BusinessRepository,
+  private val preferences: AppPreferencesDataStore,
 ) : ViewModel() {
 
   private val draft = MutableStateFlow(PosDraftState())
@@ -131,9 +139,11 @@ class PosViewModel(
     }
   }
 
-  val uiState: StateFlow<PosUiState> = combine(domainFlow, draft) { bundle, d ->
+  val uiState: StateFlow<PosUiState> = combine(domainFlow, draft, preferences.preferencesFlow) { bundle, d, prefs ->
+    val nowMs = System.currentTimeMillis()
+    val planState = PlanRules.resolve(prefs, nowMs)
     if (bundle == null) {
-      PosUiState(isSaving = d.isSaving, feedbackMessage = d.feedbackMessage)
+      PosUiState(isSaving = d.isSaving, feedbackMessage = d.feedbackMessage, planState = planState)
     } else {
       val q = d.searchQuery.trim().lowercase()
       val filtered = bundle.inventory.items.filter { item ->
@@ -174,6 +184,8 @@ class PosViewModel(
         isSaving = d.isSaving,
         feedbackMessage = d.feedbackMessage,
         completedSale = completedSale,
+        planState = planState,
+        salesThisMonth = countSalesInCurrentMonth(bundle.sales, nowMs),
       )
     }
   }.stateIn(
@@ -363,6 +375,14 @@ class PosViewModel(
   fun quickCreateCustomer(name: String, phone: String, onCreated: (Long) -> Unit) {
     val bizId = uiState.value.businessId
     if (bizId <= 0L) return
+    // Límite de clientes del plan gratuito también en el alta rápida.
+    val stateNow = uiState.value
+    if (stateNow.planState == PlanState.FREE && stateNow.customers.size >= PlanLimits.MAX_FREE_CUSTOMERS) {
+      draft.update {
+        it.copy(feedbackMessage = "Plan gratuito: llegaste a los ${PlanLimits.MAX_FREE_CUSTOMERS} clientes. Activa una licencia para añadir más.")
+      }
+      return
+    }
     viewModelScope.launch {
       draft.update { it.copy(isSaving = true) }
       try {
@@ -391,6 +411,13 @@ class PosViewModel(
     val state = uiState.value
     val currentDraft = draft.value
     if (state.businessId <= 0L || currentDraft.isSaving) return
+    // Límite de ventas del mes en el plan gratuito.
+    if (state.planState == PlanState.FREE && state.salesThisMonth >= PlanLimits.MAX_FREE_SALES_PER_MONTH) {
+      draft.update {
+        it.copy(feedbackMessage = "Plan gratuito: llegaste a las ${PlanLimits.MAX_FREE_SALES_PER_MONTH} ventas de este mes. Activa una licencia para seguir vendiendo.")
+      }
+      return
+    }
 
     viewModelScope.launch {
       draft.update { it.copy(isSaving = true) }
@@ -415,6 +442,18 @@ class PosViewModel(
             },
           ),
         )
+        // Aviso suave del plan gratuito al cruzar el 80 % del mes.
+        val newMonthCount = state.salesThisMonth + 1
+        val successMessage = if (
+          state.planState == PlanState.FREE &&
+          newMonthCount == PlanLimits.warnThreshold(PlanLimits.MAX_FREE_SALES_PER_MONTH)
+        ) {
+          "Venta confirmada correctamente. Ya usaste $newMonthCount de tus " +
+            "${PlanLimits.MAX_FREE_SALES_PER_MONTH} ventas gratuitas de este mes: " +
+            "activa una licencia para vender sin límites."
+        } else {
+          "Venta confirmada correctamente"
+        }
         draft.update {
           it.copy(
             cartItems = emptyList(),
@@ -423,7 +462,7 @@ class PosViewModel(
             clientRequestId = UUID.randomUUID().toString(),
             isSaving = false,
             completedSaleId = saleId,
-            feedbackMessage = "Venta confirmada correctamente",
+            feedbackMessage = successMessage,
           )
         }
         onSuccess(saleId)
@@ -434,6 +473,22 @@ class PosViewModel(
             feedbackMessage = e.message ?: "Error al confirmar la venta.",
           )
         }
+      }
+    }
+  }
+
+  /** Ventas válidas (no anuladas) del mes natural en curso. */
+  private fun countSalesInCurrentMonth(sales: List<SaleWithDetails>, nowMs: Long): Int {
+    val nowCal = Calendar.getInstance().apply { timeInMillis = nowMs }
+    val year = nowCal.get(Calendar.YEAR)
+    val month = nowCal.get(Calendar.MONTH)
+    val saleCal = Calendar.getInstance()
+    return sales.count { item ->
+      if (item.sale.status == "ANNULLED") {
+        false
+      } else {
+        saleCal.timeInMillis = item.sale.saleDate
+        saleCal.get(Calendar.YEAR) == year && saleCal.get(Calendar.MONTH) == month
       }
     }
   }
@@ -452,9 +507,10 @@ class PosViewModel(
     private val saleRepository: SaleRepository,
     private val inventoryRepository: InventoryRepository,
     private val businessRepository: BusinessRepository,
+    private val preferences: AppPreferencesDataStore,
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      PosViewModel(businessIdFlow, saleRepository, inventoryRepository, businessRepository) as T
+      PosViewModel(businessIdFlow, saleRepository, inventoryRepository, businessRepository, preferences) as T
   }
 }
