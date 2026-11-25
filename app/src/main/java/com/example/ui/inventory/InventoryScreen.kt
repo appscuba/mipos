@@ -69,6 +69,8 @@ fun InventoryScreen(
   viewModel: InventoryViewModel,
   onOpenProductDetail: (Long) -> Unit,
   modifier: Modifier = Modifier,
+  canManageProducts: Boolean = true,
+  canAdjustStock: Boolean = true,
 ) {
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   val snackbarHostState = remember { SnackbarHostState() }
@@ -89,13 +91,16 @@ fun InventoryScreen(
     modifier = modifier.fillMaxSize(),
     snackbarHost = { SnackbarHost(snackbarHostState) },
     floatingActionButton = {
-      FloatingActionButton(
-        onClick = { showProductDialog = true },
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        modifier = Modifier.testTag("inventory_add_product_fab"),
-      ) {
-        Icon(Icons.Filled.Add, contentDescription = "Nuevo producto")
+      // Crear productos es solo del Propietario: sin el permiso no hay botón.
+      if (canManageProducts) {
+        FloatingActionButton(
+          onClick = { showProductDialog = true },
+          containerColor = MaterialTheme.colorScheme.primary,
+          contentColor = MaterialTheme.colorScheme.onPrimary,
+          modifier = Modifier.testTag("inventory_add_product_fab"),
+        ) {
+          Icon(Icons.Filled.Add, contentDescription = "Nuevo producto")
+        }
       }
     },
   ) { innerPadding ->
@@ -141,14 +146,16 @@ fun InventoryScreen(
                     modifier = Modifier.testTag("inventory_total_value"),
                   )
                 }
-                OutlinedButton(
-                  onClick = { showCategoriesDialog = true },
-                  shape = RoundedCornerShape(10.dp),
-                  modifier = Modifier.testTag("inventory_categories_button"),
-                ) {
-                  Icon(Icons.Filled.Category, contentDescription = null, modifier = Modifier.size(18.dp))
-                  Spacer(Modifier.width(6.dp))
-                  Text("Categorías")
+                if (canManageProducts) {
+                  OutlinedButton(
+                    onClick = { showCategoriesDialog = true },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.testTag("inventory_categories_button"),
+                  ) {
+                    Icon(Icons.Filled.Category, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Categorías")
+                  }
                 }
               }
 
@@ -273,7 +280,7 @@ fun InventoryScreen(
               gramsPerPound = state.gramsPerPound,
               primaryCurrency = state.primaryCurrency,
               onClick = { onOpenProductDetail(item.product.id) },
-              onAdjustClick = { adjustingItem = item },
+              onAdjustClick = if (canAdjustStock) ({ adjustingItem = item }) else null,
             )
           }
         }
@@ -334,7 +341,7 @@ private fun ProductInventoryCard(
   gramsPerPound: BigDecimal,
   primaryCurrency: String,
   onClick: () -> Unit,
-  onAdjustClick: () -> Unit,
+  onAdjustClick: (() -> Unit)?,
 ) {
   val product = item.product
   val isWeight = product.modality == ProductModality.WEIGHT.code
@@ -464,15 +471,17 @@ private fun ProductInventoryCard(
             }
           }
 
-          OutlinedButton(
-            onClick = onAdjustClick,
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            modifier = Modifier.height(36.dp).testTag("product_adjust_btn_${product.id}"),
-          ) {
-            Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Ajustar", style = MaterialTheme.typography.labelMedium)
+          if (onAdjustClick != null) {
+            OutlinedButton(
+              onClick = onAdjustClick,
+              shape = RoundedCornerShape(10.dp),
+              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+              modifier = Modifier.height(36.dp).testTag("product_adjust_btn_${product.id}"),
+            ) {
+              Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(15.dp))
+              Spacer(Modifier.width(4.dp))
+              Text("Ajustar", style = MaterialTheme.typography.labelMedium)
+            }
           }
         }
       }
