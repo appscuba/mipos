@@ -11,6 +11,14 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class LicenseValidatorTest {
   @Test
+  fun freeAccessModeUnlocksAllFeaturesWithoutAnActiveServerLicense() {
+    val snapshot = LicenseSnapshot("STP-TEST-1234", "", "expired", 1L, 0L, 1L)
+
+    assertTrue(PlanLimits.FREE_ACCESS_MODE)
+    assertEquals(PlanStatus.LICENSED, snapshot.plan(now = Long.MAX_VALUE))
+  }
+
+  @Test
   fun requestSendsOnlyDeviceIdAndRegisteredPhone() {
     val payload = org.json.JSONObject(createLicenseValidationPayload(" STP-ABCD-1234-EF56 ", " +53 5327 4074 "))
 
