@@ -5,7 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
 import com.example.core.units.UnitConverter
+import com.example.data.license.PlanLimits
+import com.example.data.license.PlanRules
+import com.example.data.license.PlanState
 import com.example.data.local.db.entity.CategoryEntity
+import com.example.data.preferences.AppPreferencesDataStore
 import com.example.data.repository.InventoryOverview
 import com.example.data.repository.InventoryRepository
 import com.example.data.repository.ProductModality
@@ -48,6 +52,7 @@ data class InventoryUiState(
   val outOfStockCount: Int = 0,
   val feedbackMessage: String? = null,
   val isError: Boolean = false,
+  val planState: PlanState = PlanState.TRIAL,
 )
 
 private data class InventoryFilters(
@@ -60,6 +65,7 @@ private data class InventoryFilters(
 class InventoryViewModel(
   private val businessIdFlow: StateFlow<Long>,
   private val inventoryRepository: InventoryRepository,
+  private val preferences: AppPreferencesDataStore,
 ) : ViewModel() {
 
   private val filters = MutableStateFlow(InventoryFilters())
@@ -89,7 +95,8 @@ class InventoryViewModel(
     overviewFlow,
     filters,
     feedback,
-  ) { bizId, overview, currentFilters, msg ->
+    preferences.preferencesFlow,
+  ) { bizId, overview, currentFilters, msg, prefs ->
     val q = currentFilters.searchQuery.trim().lowercase()
     val filtered = overview.items.filter { item ->
       val matchesSearch = q.isEmpty() ||
@@ -130,6 +137,7 @@ class InventoryViewModel(
       outOfStockCount = overview.outOfStockCount,
       feedbackMessage = msg?.first,
       isError = msg?.second ?: false,
+      planState = PlanRules.resolve(prefs, System.currentTimeMillis()),
     )
   }.stateIn(
     scope = viewModelScope,
@@ -144,10 +152,33 @@ class InventoryViewModel(
   fun clearFeedback() { feedback.value = null }
 
   fun saveProduct(request: SaveProductRequest, onSaved: (Long) -> Unit = {}) {
+    val current = uiState.value
+    // Límite del plan gratuito: solo bloquea productos NUEVOS (las
+    // ediciones de los ya creados siguen permitidas).
+    if (request.productId == null &&
+      current.planState == PlanState.FREE &&
+      current.items.size >= PlanLimits.MAX_FREE_PRODUCTS
+    ) {
+      feedback.value =
+        "Plan gratuito: llegaste a los ${PlanLimits.MAX_FREE_PRODUCTS} productos. " +
+          "Activa una licencia para añadir más." to true
+      return
+    }
     viewModelScope.launch {
       try {
         val id = inventoryRepository.saveProduct(request)
-        feedback.value = "Producto guardado correctamente." to false
+        // Aviso suave al cruzar el 80 % de los productos del plan.
+        val newCount = current.items.size + 1
+        feedback.value = if (
+          request.productId == null &&
+          current.planState == PlanState.FREE &&
+          newCount == PlanLimits.warnThreshold(PlanLimits.MAX_FREE_PRODUCTS)
+        ) {
+          "Producto guardado. Ya tienes $newCount de ${PlanLimits.MAX_FREE_PRODUCTS} " +
+            "productos del plan gratuito: activa una licencia para añadir sin límites." to false
+        } else {
+          "Producto guardado correctamente." to false
+        }
         onSaved(id)
       } catch (e: Exception) {
         feedback.value = (e.message ?: "No se pudo guardar el producto.") to true
@@ -221,9 +252,10 @@ class InventoryViewModel(
   class Factory(
     private val businessIdFlow: StateFlow<Long>,
     private val inventoryRepository: InventoryRepository,
+    private val preferences: AppPreferencesDataStore,
   ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-      InventoryViewModel(businessIdFlow, inventoryRepository) as T
+      InventoryViewModel(businessIdFlow, inventoryRepository, preferences) as T
   }
 }
