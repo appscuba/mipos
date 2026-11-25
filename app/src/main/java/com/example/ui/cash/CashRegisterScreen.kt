@@ -321,26 +321,25 @@ private fun OpenCashSummaryCard(
         }
       }
 
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-      ) {
+      // Apilados a ancho completo: lado a lado, «Ingreso / Retiro» se partía
+      // en dos líneas y el texto quedaba cortado por la altura fija del botón.
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
           onClick = onAdjustmentClick,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("cash_adjustment_button"),
+          modifier = Modifier.fillMaxWidth().height(48.dp).testTag("cash_adjustment_button"),
         ) {
           Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(Modifier.width(6.dp))
-          Text("Ingreso / Retiro")
+          Text("Ingreso / Retiro", maxLines = 1)
         }
         Button(
           onClick = onCloseClick,
           colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-          modifier = Modifier.weight(1f).height(48.dp).testTag("cash_close_button"),
+          modifier = Modifier.fillMaxWidth().height(48.dp).testTag("cash_close_button"),
         ) {
           Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
           Spacer(Modifier.width(6.dp))
-          Text("Cerrar Caja")
+          Text("Cerrar Caja", maxLines = 1)
         }
       }
     }
