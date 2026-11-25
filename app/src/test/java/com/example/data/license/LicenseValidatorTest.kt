@@ -11,6 +11,15 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class LicenseValidatorTest {
   @Test
+  fun requestSendsOnlyDeviceIdAndRegisteredPhone() {
+    val payload = org.json.JSONObject(createLicenseValidationPayload(" STP-ABCD-1234-EF56 ", " +53 5327 4074 "))
+
+    assertEquals(setOf("device_id", "phone"), payload.keys().asSequence().toSet())
+    assertEquals("STP-ABCD-1234-EF56", payload.getString("device_id"))
+    assertEquals("+53 5327 4074", payload.getString("phone"))
+  }
+
+  @Test
   fun activeResponseConvertsUnixSecondsToMilliseconds() {
     val result = parseLicenseResponse(
       """{"status":"active","expira":"2027-01-01","expira_ts":1800000000}""",
