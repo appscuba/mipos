@@ -167,7 +167,6 @@ fun FinanceScreen(
                   valueTag = "finance_operating_expenses",
                 )
               }
-
               HorizontalDivider()
               // La ganancia neta va a ancho completo: compartir renglón con
               // «Por cobrar / Por pagar» montaba un importe sobre el otro.
