@@ -11,7 +11,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.gestorcomercial.rtxqpm"
+    applicationId = "cu.pedritotech.stockplus"
     minSdk = 24
     targetSdk = 36
     // En GitHub Actions, BUILD_VERSION_CODE = 1000 + nº de corrida:
