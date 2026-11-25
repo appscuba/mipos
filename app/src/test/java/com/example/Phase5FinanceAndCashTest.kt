@@ -240,6 +240,8 @@ class Phase5FinanceAndCashTest {
     overview = financeRepo.observeFinanceOverview(businessId).first()
     assertEquals(0, BigDecimal("400.00").compareTo(overview.netProfitBase))
     assertEquals(0, BigDecimal("500.00").compareTo(overview.openCashSession!!.expectedCashBase))
+    // El reverso de la anulación NO es un ingreso extra: no debe inflar ese total
+    assertEquals(0, BigDecimal.ZERO.compareTo(overview.totalExtraIncomeBase))
     val keptExpense = db.financeDao().getExpenseById(expenseId)
     assertNotNull(keptExpense)
     assertEquals("ANNULLED", keptExpense!!.status)
