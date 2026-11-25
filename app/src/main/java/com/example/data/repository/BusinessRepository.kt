@@ -152,7 +152,7 @@ class BusinessRepository(
 
   suspend fun completeInitialSetup(request: InitialBusinessSetupRequest): Long {
     val result = db.withTransaction {
-      seedSystemRolesAndPermissions()
+      ensureSystemRolesAndPermissions()
       val ownerRole = securityDao.getRoleByCode("OWNER")
         ?: error("Owner role could not be seeded")
 
@@ -450,7 +450,12 @@ class BusinessRepository(
     preferences.resetAllWorkspaceData()
   }
 
-  private suspend fun seedSystemRolesAndPermissions() {
+  /**
+   * Siembra idempotente de roles y permisos del sistema. Corre en la
+   * configuración inicial y al arrancar la app, para que las instalaciones
+   * existentes reciban los perfiles nuevos sin reinstalar.
+   */
+  suspend fun ensureSystemRolesAndPermissions() {
     val ownerRoleId = securityDao.getRoleByCode("OWNER")?.id
       ?: securityDao.insertRole(
         RoleEntity(
@@ -471,11 +476,32 @@ class BusinessRepository(
         ),
       )
 
+    val adminRoleId = securityDao.getRoleByCode("ADMIN")?.id
+      ?: securityDao.insertRole(
+        RoleEntity(
+          code = "ADMIN",
+          name = "Administrador",
+          description = "Operación diaria completa: ventas, compras, entradas y salidas, finanzas y reportes. No crea ni da de baja productos, ni administra usuarios ni configuración",
+          isSystemDefault = true,
+        ),
+      )
+
+    val warehouseRoleId = securityDao.getRoleByCode("WAREHOUSE")?.id
+      ?: securityDao.insertRole(
+        RoleEntity(
+          code = "WAREHOUSE",
+          name = "Almacenero",
+          description = "Almacén: registrar compras y dar entrada y salida a los productos",
+          isSystemDefault = true,
+        ),
+      )
+
     val allPermissions = listOf(
       Triple("POS_SELL", "Realizar ventas", "POS"),
       Triple("POS_DISCOUNT", "Aplicar descuentos autorizados", "POS"),
       Triple("POS_ANNUL", "Anular o devolver ventas", "POS"),
       Triple("PRODUCTS_MANAGE", "Gestionar productos e inventario", "INVENTORY"),
+      Triple("STOCK_ADJUST", "Ajustar existencias (entradas y salidas)", "INVENTORY"),
       Triple("PURCHASES_MANAGE", "Registrar compras y proveedores", "PURCHASES"),
       Triple("FINANCE_VIEW", "Ver finanzas y gastos", "FINANCE"),
       Triple("CASH_CLOSE", "Abrir y cerrar caja", "CASH"),
@@ -486,6 +512,15 @@ class BusinessRepository(
     )
 
     val clerkPermissionCodes = setOf("POS_SELL", "CASH_CLOSE")
+    // El Administrador lo opera casi todo, pero crear/dar de baja productos,
+    // los usuarios y la configuración quedan reservados al Propietario.
+    val adminPermissionCodes = setOf(
+      "POS_SELL", "POS_DISCOUNT", "POS_ANNUL",
+      "PURCHASES_MANAGE", "STOCK_ADJUST",
+      "FINANCE_VIEW", "CASH_CLOSE", "REPORTS_COST_PROFIT",
+    )
+    // El Almacenero solo mueve mercancía: compras (entradas) y ajustes (entradas/salidas).
+    val warehousePermissionCodes = setOf("PURCHASES_MANAGE", "STOCK_ADJUST")
 
     for ((code, name, module) in allPermissions) {
       val existingPerm = securityDao.getPermissionByCode(code)
@@ -495,6 +530,12 @@ class BusinessRepository(
       securityDao.insertRolePermission(RolePermissionCrossRef(roleId = ownerRoleId, permissionId = permId))
       if (code in clerkPermissionCodes) {
         securityDao.insertRolePermission(RolePermissionCrossRef(roleId = clerkRoleId, permissionId = permId))
+      }
+      if (code in adminPermissionCodes) {
+        securityDao.insertRolePermission(RolePermissionCrossRef(roleId = adminRoleId, permissionId = permId))
+      }
+      if (code in warehousePermissionCodes) {
+        securityDao.insertRolePermission(RolePermissionCrossRef(roleId = warehouseRoleId, permissionId = permId))
       }
     }
   }
