@@ -537,13 +537,18 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
 
-    // El selector de forma de pago aparece al inicio del contenido del checkout.
-    // Buscar por su texto evita depender del testTag de un FilterChip dentro de FlowRow,
-    // cuyo nodo puede no quedar expuesto de forma estable en Robolectric al desplazar.
+    // El selector está dentro de la columna desplazable del checkout.
+    // Desplazamos ese contenedor explícitamente para que el FilterChip quede visible
+    // antes de interactuar con él (Robolectric no siempre expone los nodos fuera de viewport).
     composeTestRule.waitUntil(timeoutMillis = 10_000) {
-      composeTestRule.onAllNodesWithText("Crédito").fetchSemanticsNodes().isNotEmpty()
+      composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
     }
-    composeTestRule.onNodeWithText("Crédito").performClick()
+    composeTestRule.onNodeWithTag("pos_checkout_scroll")
+      .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").assertIsDisplayed().performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
