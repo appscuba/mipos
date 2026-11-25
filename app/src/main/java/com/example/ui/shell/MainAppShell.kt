@@ -60,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.AppContainer
+import com.example.data.license.PlanRules
+import com.example.data.license.PlanState
 import com.example.data.repository.AppPermissions
 import com.example.ui.MainAppState
 import com.example.ui.backups.BackupsScreen
@@ -92,6 +95,9 @@ import com.example.ui.inventory.InventoryScreen
 import com.example.ui.inventory.InventoryViewModel
 import com.example.ui.inventory.ProductDetailScreen
 import com.example.ui.inventory.ProductDetailViewModel
+import com.example.ui.license.LicenseScreen
+import com.example.ui.license.LicenseViewModel
+import com.example.ui.license.PlanLockedContent
 import com.example.ui.navigation.AppDestination
 import com.example.ui.navigation.BottomNavTab
 import com.example.ui.pos.PosScreen
@@ -145,6 +151,10 @@ fun MainAppShell(
   val currentUserIdProvider: () -> Long? = { appState.activeSession.user?.id }
   val activeSession = appState.activeSession
 
+  // Plan comercial (freemium) derivado de las preferencias guardadas.
+  val planState = PlanRules.resolve(appState.preferences, System.currentTimeMillis())
+  val isFreePlan = planState == PlanState.FREE
+
   fun navigateToTab(dest: AppDestination) {
     navController.navigate(dest) {
       popUpTo(navController.graph.findStartDestination().id) {
@@ -181,6 +191,7 @@ fun MainAppShell(
     currentDestination?.hasRoute<AppDestination.UsersAudit>() == true -> "Usuarios y Auditoría"
     currentDestination?.hasRoute<AppDestination.Backups>() == true -> "Respaldos"
     currentDestination?.hasRoute<AppDestination.BusinessSettings>() == true -> "Configuración"
+    currentDestination?.hasRoute<AppDestination.License>() == true -> "Licencia de Stock+"
     else -> "Stock+"
   }
 
@@ -379,7 +390,10 @@ fun MainAppShell(
                   businessRepository = container.businessRepository,
                 ),
               )
-              HistoryScreen(viewModel = historyVm)
+              HistoryScreen(
+                viewModel = historyVm,
+                freeVersionFooter = isFreePlan,
+              )
             }
             composable<AppDestination.Pos> {
               val posVm: PosViewModel = viewModel(
@@ -388,6 +402,7 @@ fun MainAppShell(
                   saleRepository = container.saleRepository,
                   inventoryRepository = container.inventoryRepository,
                   businessRepository = container.businessRepository,
+                  preferences = container.preferences,
                 ),
               )
               PosScreen(viewModel = posVm)
@@ -397,6 +412,7 @@ fun MainAppShell(
                 factory = InventoryViewModel.Factory(
                   businessIdFlow = activeBusinessIdFlow,
                   inventoryRepository = container.inventoryRepository,
+                  preferences = container.preferences,
                 ),
               )
               InventoryScreen(
@@ -412,6 +428,7 @@ fun MainAppShell(
                 factory = InventoryViewModel.Factory(
                   businessIdFlow = activeBusinessIdFlow,
                   inventoryRepository = container.inventoryRepository,
+                  preferences = container.preferences,
                 ),
               )
               val invState by inventoryVm.uiState.collectAsStateWithLifecycle()
@@ -482,6 +499,7 @@ fun MainAppShell(
                   businessIdFlow = activeBusinessIdFlow,
                   financeRepository = container.financeRepository,
                   businessRepository = container.businessRepository,
+                  preferences = container.preferences,
                   currentUserIdProvider = currentUserIdProvider,
                 ),
               )
@@ -499,14 +517,21 @@ fun MainAppShell(
               CashRegisterScreen(viewModel = cashVm)
             }
             composable<AppDestination.Currencies> {
-              val currenciesVm: CurrenciesViewModel = viewModel(
-                factory = CurrenciesViewModel.Factory(
-                  businessIdFlow = activeBusinessIdFlow,
-                  businessRepository = container.businessRepository,
-                  currentUserIdProvider = currentUserIdProvider,
-                ),
-              )
-              CurrenciesScreen(viewModel = currenciesVm)
+              if (isFreePlan) {
+                PlanLockedContent(
+                  featureName = "Monedas y Tasas",
+                  onOpenLicense = { navigateFromDrawer(AppDestination.License) },
+                )
+              } else {
+                val currenciesVm: CurrenciesViewModel = viewModel(
+                  factory = CurrenciesViewModel.Factory(
+                    businessIdFlow = activeBusinessIdFlow,
+                    businessRepository = container.businessRepository,
+                    currentUserIdProvider = currentUserIdProvider,
+                  ),
+                )
+                CurrenciesScreen(viewModel = currenciesVm)
+              }
             }
             composable<AppDestination.Reports> {
               if (!activeSession.hasPermission(AppPermissions.REPORTS_COST_PROFIT)) {
@@ -517,6 +542,11 @@ fun MainAppShell(
                   icon = Icons.Filled.Assessment,
                   onNavigateHome = { navigateToTab(AppDestination.Home) },
                   onNavigateSettings = { navigateFromDrawer(AppDestination.UsersAudit) },
+                )
+              } else if (isFreePlan) {
+                PlanLockedContent(
+                  featureName = "Reportes y Ganancias",
+                  onOpenLicense = { navigateFromDrawer(AppDestination.License) },
                 )
               } else {
                 val reportsVm: ReportsViewModel = viewModel(
@@ -539,16 +569,23 @@ fun MainAppShell(
               UsersAuditScreen(viewModel = usersVm)
             }
             composable<AppDestination.Backups> {
-              val backupsVm: BackupsViewModel = viewModel(
-                factory = BackupsViewModel.Factory(
-                  businessIdFlow = activeBusinessIdFlow,
-                  backupRepository = container.backupRepository,
-                  businessRepository = container.businessRepository,
-                  preferences = container.preferences,
-                  currentUserIdProvider = currentUserIdProvider,
-                ),
-              )
-              BackupsScreen(viewModel = backupsVm)
+              if (isFreePlan) {
+                PlanLockedContent(
+                  featureName = "Respaldos",
+                  onOpenLicense = { navigateFromDrawer(AppDestination.License) },
+                )
+              } else {
+                val backupsVm: BackupsViewModel = viewModel(
+                  factory = BackupsViewModel.Factory(
+                    businessIdFlow = activeBusinessIdFlow,
+                    backupRepository = container.backupRepository,
+                    businessRepository = container.businessRepository,
+                    preferences = container.preferences,
+                    currentUserIdProvider = currentUserIdProvider,
+                  ),
+                )
+                BackupsScreen(viewModel = backupsVm)
+              }
             }
             composable<AppDestination.BusinessSettings> {
               val settingsVm: BusinessSettingsViewModel = viewModel(
@@ -560,7 +597,17 @@ fun MainAppShell(
               BusinessSettingsScreen(
                 viewModel = settingsVm,
                 onNavigateToBackups = { navController.navigate(AppDestination.Backups) },
+                onOpenLicense = { navigateFromDrawer(AppDestination.License) },
               )
+            }
+            composable<AppDestination.License> {
+              val licenseVm: LicenseViewModel = viewModel(
+                factory = LicenseViewModel.Factory(
+                  context = LocalContext.current.applicationContext,
+                  preferences = container.preferences,
+                ),
+              )
+              LicenseScreen(viewModel = licenseVm)
             }
           }
         }
