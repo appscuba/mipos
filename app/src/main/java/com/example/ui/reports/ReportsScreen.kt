@@ -1,6 +1,7 @@
 package com.example.ui.reports
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,8 +34,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +52,9 @@ import com.example.data.repository.ReportPeriodPreset
 import com.example.ui.theme.MonoMetricLarge
 import com.example.ui.theme.MonoMetricMedium
 import java.math.BigDecimal
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -54,6 +65,40 @@ fun ReportsScreen(
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   val context = LocalContext.current
   val report = state.report
+  val scope = rememberCoroutineScope()
+  var exportMenuOpen by remember { mutableStateOf(false) }
+
+  fun shareTextReport() {
+    val summary = viewModel.buildShareText()
+    if (summary.isNotEmpty()) {
+      val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Reporte ${state.businessName}")
+        putExtra(Intent.EXTRA_TEXT, summary)
+      }
+      context.startActivity(Intent.createChooser(intent, "Compartir reporte"))
+    }
+  }
+
+  fun exportFileReport(asPdf: Boolean) {
+    val model = viewModel.buildExportModel() ?: return
+    scope.launch {
+      val result = runCatching {
+        withContext(Dispatchers.IO) {
+          if (asPdf) {
+            ReportExportFiles.writePdf(context, model) to ReportExportFiles.PDF_MIME
+          } else {
+            ReportExportFiles.writeExcel(context, model) to ReportExportFiles.XLSX_MIME
+          }
+        }
+      }
+      result.onSuccess { (file, mime) ->
+        ReportExportFiles.shareFile(context, file, mime, "Reporte ${state.businessName}")
+      }.onFailure {
+        Toast.makeText(context, "No se pudo generar el archivo del reporte", Toast.LENGTH_LONG).show()
+      }
+    }
+  }
 
   Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
     Box(
@@ -78,23 +123,44 @@ fun ReportsScreen(
           ) {
             Text("Período de Análisis", style = MaterialTheme.typography.titleMedium)
             if (report != null) {
-              OutlinedButton(
-                onClick = {
-                  val summary = viewModel.buildShareText()
-                  if (summary.isNotEmpty()) {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                      type = "text/plain"
-                      putExtra(Intent.EXTRA_SUBJECT, "Reporte ${state.businessName}")
-                      putExtra(Intent.EXTRA_TEXT, summary)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Compartir reporte"))
-                  }
-                },
-                modifier = Modifier.height(48.dp).testTag("reports_share_button"),
-              ) {
-                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Exportar")
+              Box {
+                OutlinedButton(
+                  onClick = { exportMenuOpen = true },
+                  modifier = Modifier.height(48.dp).testTag("reports_share_button"),
+                ) {
+                  Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Spacer(Modifier.width(6.dp))
+                  Text("Exportar")
+                }
+                DropdownMenu(
+                  expanded = exportMenuOpen,
+                  onDismissRequest = { exportMenuOpen = false },
+                ) {
+                  DropdownMenuItem(
+                    text = { Text("Exportar PDF") },
+                    onClick = {
+                      exportMenuOpen = false
+                      exportFileReport(asPdf = true)
+                    },
+                    modifier = Modifier.testTag("reports_export_pdf"),
+                  )
+                  DropdownMenuItem(
+                    text = { Text("Exportar Excel (.xlsx)") },
+                    onClick = {
+                      exportMenuOpen = false
+                      exportFileReport(asPdf = false)
+                    },
+                    modifier = Modifier.testTag("reports_export_excel"),
+                  )
+                  DropdownMenuItem(
+                    text = { Text("Compartir texto") },
+                    onClick = {
+                      exportMenuOpen = false
+                      shareTextReport()
+                    },
+                    modifier = Modifier.testTag("reports_export_text"),
+                  )
+                }
               }
             }
           }
@@ -113,6 +179,44 @@ fun ReportsScreen(
 
         if (report != null) {
           val cur = report.primaryCurrency
+
+          item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+              Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SummaryMetricCard(
+                  label = "Ventas netas",
+                  value = MoneyMath.format(report.netSalesBase, cur),
+                  detail = "${report.salesCount} ventas",
+                  modifier = Modifier.weight(1f),
+                )
+                SummaryMetricCard(
+                  label = "Ganancia bruta",
+                  value = MoneyMath.format(report.grossProfitBase, cur),
+                  detail = "Margen ${report.grossMarginPercent}%",
+                  modifier = Modifier.weight(1f),
+                )
+              }
+              Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SummaryMetricCard(
+                  label = "Ganancia neta",
+                  value = MoneyMath.format(report.netProfitBase, cur),
+                  detail = "Margen ${report.netMarginPercent}%",
+                  valueColor = if (report.netProfitBase >= BigDecimal.ZERO) {
+                    MaterialTheme.colorScheme.tertiary
+                  } else {
+                    MaterialTheme.colorScheme.error
+                  },
+                  modifier = Modifier.weight(1f),
+                )
+                SummaryMetricCard(
+                  label = "Valor inventario",
+                  value = MoneyMath.format(report.inventoryValueBase, cur),
+                  detail = "Al costo",
+                  modifier = Modifier.weight(1f),
+                )
+              }
+            }
+          }
 
           item {
             Card(
@@ -248,6 +352,43 @@ private fun ReportLine(
 }
 
 @Composable
+private fun SummaryMetricCard(
+  label: String,
+  value: String,
+  detail: String,
+  modifier: Modifier = Modifier,
+  valueColor: Color = Color.Unspecified,
+) {
+  Card(
+    shape = MaterialTheme.shapes.medium,
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    modifier = modifier,
+  ) {
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(14.dp),
+      verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+      Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Text(
+        text = value,
+        style = MonoMetricMedium,
+        fontWeight = FontWeight.Bold,
+        color = valueColor,
+      )
+      Text(
+        text = detail,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
+}
+
+@Composable
 private fun ProductProfitCard(
   row: ProductProfitabilityRow,
   currency: String,
@@ -259,10 +400,15 @@ private fun ProductProfitCard(
   ) {
     Column(
       modifier = Modifier.fillMaxWidth().padding(14.dp),
-      verticalArrangement = Arrangement.spacedBy(4.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(row.productName, style = MaterialTheme.typography.titleSmall)
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(row.productName, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         Text(
           text = "Margen: ${row.marginPercent}%",
           style = MaterialTheme.typography.labelMedium,
@@ -270,20 +416,53 @@ private fun ProductProfitCard(
         )
       }
       Text(
-        text = "Volumen vendido: ${row.unitsSummary}",
+        text = "Unidades vendidas: ${row.unitsSummary}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Ing: ${MoneyMath.format(row.revenueBase, currency)}", style = MaterialTheme.typography.bodySmall)
-        Text("Costo: ${MoneyMath.format(row.costBase, currency)}", style = MaterialTheme.typography.bodySmall)
-        Text(
-          text = "+${MoneyMath.format(row.grossProfitBase, currency)}",
-          style = MonoMetricMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.tertiary,
+      HorizontalDivider()
+      Row(modifier = Modifier.fillMaxWidth()) {
+        ProductAmountColumn(
+          label = "Ingresos",
+          value = MoneyMath.format(row.revenueBase, currency),
+          modifier = Modifier.weight(1f),
+        )
+        ProductAmountColumn(
+          label = "Costo",
+          value = MoneyMath.format(row.costBase, currency),
+          modifier = Modifier.weight(1f),
+        )
+        ProductAmountColumn(
+          label = "Ganancia",
+          value = MoneyMath.format(row.grossProfitBase, currency),
+          valueColor = MaterialTheme.colorScheme.tertiary,
+          bold = true,
+          modifier = Modifier.weight(1f),
         )
       }
     }
+  }
+}
+
+@Composable
+private fun ProductAmountColumn(
+  label: String,
+  value: String,
+  modifier: Modifier = Modifier,
+  valueColor: Color = Color.Unspecified,
+  bold: Boolean = false,
+) {
+  Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelSmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+      text = value,
+      style = if (bold) MonoMetricMedium else MaterialTheme.typography.bodyMedium,
+      fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+      color = valueColor,
+    )
   }
 }
