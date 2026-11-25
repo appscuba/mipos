@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -179,7 +180,7 @@ fun SetupScreen(
           shape = RoundedCornerShape(14.dp),
           modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .testTag("setup_restore_backup_button"),
         ) {
           Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
