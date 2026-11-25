@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.money.MoneyMath
+import com.example.data.license.PlanRules
+import com.example.data.license.PlanState
 import com.example.data.preferences.AppPreferencesDataStore
 import com.example.data.repository.BusinessRepository
 import com.example.ui.theme.ThemeMode
@@ -31,6 +33,10 @@ data class BusinessSettingsUiState(
   val isResetting: Boolean = false,
   val statusMessage: String? = null,
   val isError: Boolean = false,
+  // Plan comercial (freemium): estado derivado de las preferencias.
+  val planState: PlanState = PlanState.TRIAL,
+  val planTrialDaysRemaining: Int = 0,
+  val planLicenseExpiresAt: Long = 0L,
 )
 
 class BusinessSettingsViewModel(
@@ -70,6 +76,16 @@ class BusinessSettingsViewModel(
           }
         } else {
           _uiState.update { it.copy(themeMode = prefs.themeMode) }
+        }
+        // El plan se refresca con cada emisión de preferencias
+        // (activación de licencia, paso de los días de prueba…).
+        val nowMs = System.currentTimeMillis()
+        _uiState.update {
+          it.copy(
+            planState = PlanRules.resolve(prefs, nowMs),
+            planTrialDaysRemaining = PlanRules.trialDaysRemaining(prefs, nowMs),
+            planLicenseExpiresAt = prefs.licenseExpiresAt,
+          )
         }
       }
     }
