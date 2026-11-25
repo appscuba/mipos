@@ -18,7 +18,7 @@ enum class PlanStatus { LICENSED, TRIAL, FREE }
 
 data class LicenseSnapshot(
   val deviceId: String,
-  val licenseKey: String,
+  val licensePhone: String,
   val serverStatus: String,
   val expiresAt: Long,
   val lastSuccessfulValidation: Long,
