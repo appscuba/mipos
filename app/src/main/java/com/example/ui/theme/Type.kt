@@ -98,17 +98,21 @@ val Typography = Typography(
   ),
 )
 
+// Estilos de cifras para panel, estadísticas y caja: Plus Jakarta Sans con
+// números tabulares (tnum) — las columnas de montos se alinean sin recurrir
+// a una fuente monoespaciada, con un aspecto más profesional.
 val MonoMetricLarge = TextStyle(
-  fontFamily = JetBrainsMonoFamily,
+  fontFamily = PlusJakartaSansFamily,
   fontWeight = FontWeight.Bold,
   fontSize = 22.sp,
   lineHeight = 28.sp,
+  letterSpacing = (-0.25).sp,
   fontFeatureSettings = "tnum",
 )
 
 val MonoMetricMedium = TextStyle(
-  fontFamily = JetBrainsMonoFamily,
-  fontWeight = FontWeight.Medium,
+  fontFamily = PlusJakartaSansFamily,
+  fontWeight = FontWeight.SemiBold,
   fontSize = 15.sp,
   lineHeight = 20.sp,
   fontFeatureSettings = "tnum",
