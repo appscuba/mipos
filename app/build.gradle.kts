@@ -18,6 +18,14 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // LicenseHub: plataforma de licencias (sustituye al servidor
+    // antiguo de pedritotech.cu). Se puede sobrescribir con la
+    // propiedad LICENSEHUB_URL (gradle.properties o -P) sin tocar
+    // el código; por defecto apunta al despliegue en producción.
+    val licenseHubUrl =
+      (project.findProperty("LICENSEHUB_URL") as String?) ?: "https://appscuba.vercel.app"
+    buildConfigField("String", "LICENSEHUB_URL", "\"$licenseHubUrl\"")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
@@ -137,6 +145,9 @@ dependencies {
   // implementation(libs.firebase.appcheck.debug)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
+  // Verificación de firmas Ed25519 de LicenseHub en Android >= 24,
+  // sin Google Play Services.
+  implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
   implementation(libs.kotlinx.serialization.json)
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
