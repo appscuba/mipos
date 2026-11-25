@@ -71,7 +71,9 @@ fun PlansScreen(
 ) {
   val context = LocalContext.current
   val planStatus = snapshot.plan()
-  val statusText = when (planStatus) {
+  val statusText = if (com.example.data.license.PlanLimits.FREE_ACCESS_MODE) {
+    "Acceso completo gratuito — no requiere licencia"
+  } else when (planStatus) {
     com.example.data.license.PlanStatus.LICENSED -> "Licencia activa"
     com.example.data.license.PlanStatus.TRIAL -> "Prueba gratuita: ${snapshot.trialDaysRemaining()} días restantes"
     com.example.data.license.PlanStatus.FREE -> "Plan gratuito"
