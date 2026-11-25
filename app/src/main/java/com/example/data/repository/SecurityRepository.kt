@@ -21,6 +21,7 @@ object AppPermissions {
   const val POS_DISCOUNT = "POS_DISCOUNT"
   const val POS_ANNUL = "POS_ANNUL"
   const val PRODUCTS_MANAGE = "PRODUCTS_MANAGE"
+  const val STOCK_ADJUST = "STOCK_ADJUST"
   const val PURCHASES_MANAGE = "PURCHASES_MANAGE"
   const val FINANCE_VIEW = "FINANCE_VIEW"
   const val CASH_CLOSE = "CASH_CLOSE"
