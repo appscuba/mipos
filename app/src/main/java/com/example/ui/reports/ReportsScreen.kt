@@ -279,7 +279,8 @@ fun ReportsScreen(
                 ReportLine("Compras del período (${report.purchasesCount})", MoneyMath.format(report.totalPurchasesBase, cur))
                 ReportLine("Cuentas por cobrar (Clientes)", MoneyMath.format(report.customerReceivableBase, cur))
                 ReportLine("Cuentas por pagar (Proveedores)", MoneyMath.format(report.supplierPayableBase, cur))
-                ReportLine("Capital invertido / Retiros", "${MoneyMath.format(report.investedCapitalBase, cur)} / ${MoneyMath.format(report.ownerWithdrawalsBase, cur)}")
+                ReportLine("Capital invertido", MoneyMath.format(report.investedCapitalBase, cur))
+                ReportLine("Retiros del propietario", MoneyMath.format(report.ownerWithdrawalsBase, cur))
               }
             }
           }
@@ -344,14 +345,23 @@ private fun ReportLine(
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // La etiqueta cede el espacio y el importe queda siempre en una línea:
+    // así ningún importe se parte ni se monta sobre su etiqueta.
+    Text(
+      label,
+      style = MaterialTheme.typography.bodyMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = Modifier.weight(1f),
+    )
     Text(
       text = value,
       style = MonoMetricMedium,
       fontWeight = FontWeight.SemiBold,
+      maxLines = 1,
+      softWrap = false,
       color = highlightColor ?: MaterialTheme.colorScheme.onSurface,
       modifier = if (tag != null) Modifier.testTag(tag) else Modifier,
     )
@@ -384,6 +394,8 @@ private fun SummaryMetricCard(
         text = value,
         style = MonoMetricMedium,
         fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        softWrap = false,
         color = valueColor,
       )
       Text(
