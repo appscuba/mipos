@@ -74,6 +74,9 @@ interface SecurityDao {
   @androidx.room.Update
   suspend fun updateUser(user: UserEntity)
 
+  @Query("DELETE FROM users WHERE id = :userId")
+  suspend fun deleteUserById(userId: Long)
+
   @Insert
   suspend fun insertAuditLog(log: AuditLogEntity): Long
 
