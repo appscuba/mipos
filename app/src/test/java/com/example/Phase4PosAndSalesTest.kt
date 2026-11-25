@@ -387,7 +387,10 @@ class Phase4PosAndSalesTest {
         ),
       )
     } catch (error: IllegalStateException) {
-      rejected = error.message?.contains("abrir la caja", ignoreCase = true) == true
+      rejected = error.message?.let { message ->
+        message.contains("iniciar la caja", ignoreCase = true) ||
+          message.contains("abrir caja", ignoreCase = true)
+      } == true
     }
 
     assertTrue("La venta debe rechazarse si no hay caja abierta", rejected)
