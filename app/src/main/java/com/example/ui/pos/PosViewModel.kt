@@ -77,6 +77,9 @@ private data class PosDraftState(
   val clientRequestId: String = UUID.randomUUID().toString(),
   val isSaving: Boolean = false,
   val feedbackMessage: String? = null,
+  // True si el aviso es un error: con el diálogo de cobro abierto se
+  // muestra DENTRO del diálogo (encima), no en el snackbar de atrás.
+  val feedbackIsError: Boolean = false,
   val completedSaleId: Long? = null,
 )
 
@@ -100,6 +103,7 @@ data class PosUiState(
   val totalBase: BigDecimal = MoneyMath.ZERO,
   val isSaving: Boolean = false,
   val feedbackMessage: String? = null,
+  val feedbackIsError: Boolean = false,
   val completedSale: SaleWithDetails? = null,
   val planState: PlanState = PlanState.TRIAL,
   val salesThisMonth: Int = 0,
@@ -143,15 +147,20 @@ class PosViewModel(
     val nowMs = System.currentTimeMillis()
     val planState = PlanRules.resolve(prefs, nowMs)
     if (bundle == null) {
-      PosUiState(isSaving = d.isSaving, feedbackMessage = d.feedbackMessage, planState = planState)
+      PosUiState(isSaving = d.isSaving, feedbackMessage = d.feedbackMessage, feedbackIsError = d.feedbackIsError, planState = planState)
     } else {
       val q = d.searchQuery.trim().lowercase()
+      val allowNegativeStock = bundle.workspace.settings?.allowNegativeStock ?: false
       val filtered = bundle.inventory.items.filter { item ->
         val matchesCat = d.selectedCategoryId == null || item.product.categoryId == d.selectedCategoryId
         val matchesQuery = q.isEmpty() ||
           item.product.name.lowercase().contains(q) ||
           item.product.sku.lowercase().contains(q)
-        matchesCat && matchesQuery
+        // Sin existencia no sale en el punto de venta: no se puede
+        // vender lo que no hay. Solo se muestran con existencia > 0,
+        // salvo negocios que permiten vender con stock negativo.
+        val hasStock = allowNegativeStock || item.product.stockBaseQty > BigDecimal.ZERO
+        matchesCat && matchesQuery && hasStock
       }
 
       val subtotal = d.cartItems.fold(MoneyMath.ZERO) { acc, item ->
@@ -183,6 +192,7 @@ class PosViewModel(
         totalBase = total,
         isSaving = d.isSaving,
         feedbackMessage = d.feedbackMessage,
+        feedbackIsError = d.feedbackIsError,
         completedSale = completedSale,
         planState = planState,
         salesThisMonth = countSalesInCurrentMonth(bundle.sales, nowMs),
@@ -211,7 +221,7 @@ class PosViewModel(
   }
 
   fun clearFeedback() {
-    draft.update { it.copy(feedbackMessage = null) }
+    draft.update { it.copy(feedbackMessage = null, feedbackIsError = false) }
   }
 
   fun dismissReceipt() {
@@ -227,7 +237,7 @@ class PosViewModel(
     onSuccess: () -> Unit,
   ) {
     if (enteredQuantity <= BigDecimal.ZERO) {
-      draft.update { it.copy(feedbackMessage = "La cantidad debe ser mayor que cero.") }
+      draft.update { it.copy(feedbackMessage = "La cantidad debe ser mayor que cero.", feedbackIsError = true) }
       return
     }
 
@@ -244,6 +254,7 @@ class PosViewModel(
       draft.update {
         it.copy(
           feedbackMessage = "Stock insuficiente para '${product.name}'. Disponible: ${MoneyMath.formatQuantity(product.stockBaseQty)} ${product.baseUnit}.",
+          feedbackIsError = true,
         )
       }
       return
@@ -341,7 +352,7 @@ class PosViewModel(
 
     if (product.trackInventory && !state.allowNegativeStock && otherLinesBase.add(newBase) > product.stockBaseQty) {
       draft.update {
-        it.copy(feedbackMessage = "Stock máximo alcanzado para '${product.name}'.")
+        it.copy(feedbackMessage = "Stock máximo alcanzado para '${product.name}'.", feedbackIsError = true)
       }
       return
     }
@@ -379,7 +390,7 @@ class PosViewModel(
     val stateNow = uiState.value
     if (stateNow.planState == PlanState.FREE && stateNow.customers.size >= PlanLimits.MAX_FREE_CUSTOMERS) {
       draft.update {
-        it.copy(feedbackMessage = "Plan gratuito: llegaste a los ${PlanLimits.MAX_FREE_CUSTOMERS} clientes. Activa una licencia para añadir más.")
+        it.copy(feedbackMessage = "Plan gratuito: llegaste a los ${PlanLimits.MAX_FREE_CUSTOMERS} clientes. Activa una licencia para añadir más.", feedbackIsError = true)
       }
       return
     }
@@ -392,12 +403,13 @@ class PosViewModel(
             isSaving = false,
             selectedCustomerId = id,
             feedbackMessage = "Cliente '$name' creado",
+            feedbackIsError = false,
           )
         }
         onCreated(id)
       } catch (e: Exception) {
         draft.update {
-          it.copy(isSaving = false, feedbackMessage = e.message ?: "No se pudo crear el cliente.")
+          it.copy(isSaving = false, feedbackMessage = e.message ?: "No se pudo crear el cliente.", feedbackIsError = true)
         }
       }
     }
@@ -414,7 +426,7 @@ class PosViewModel(
     // Límite de ventas del mes en el plan gratuito.
     if (state.planState == PlanState.FREE && state.salesThisMonth >= PlanLimits.MAX_FREE_SALES_PER_MONTH) {
       draft.update {
-        it.copy(feedbackMessage = "Plan gratuito: llegaste a las ${PlanLimits.MAX_FREE_SALES_PER_MONTH} ventas de este mes. Activa una licencia para seguir vendiendo.")
+        it.copy(feedbackMessage = "Plan gratuito: llegaste a las ${PlanLimits.MAX_FREE_SALES_PER_MONTH} ventas de este mes. Activa una licencia para seguir vendiendo.", feedbackIsError = true)
       }
       return
     }
@@ -463,6 +475,7 @@ class PosViewModel(
             isSaving = false,
             completedSaleId = saleId,
             feedbackMessage = successMessage,
+            feedbackIsError = false,
           )
         }
         onSuccess(saleId)
@@ -471,6 +484,7 @@ class PosViewModel(
           it.copy(
             isSaving = false,
             feedbackMessage = e.message ?: "Error al confirmar la venta.",
+            feedbackIsError = true,
           )
         }
       }
