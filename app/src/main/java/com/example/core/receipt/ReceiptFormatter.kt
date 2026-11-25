@@ -17,6 +17,7 @@ object ReceiptFormatter {
     details: List<SaleDetailEntity>,
     payments: List<PaymentEntity>,
     customerName: String?,
+    freeVersionFooter: Boolean = false,
   ): String {
     val baseCurrency = business?.primaryCurrency ?: sale.currencyCode
     val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(sale.saleDate))
@@ -73,6 +74,10 @@ object ReceiptFormatter {
     }
     sb.appendLine("========================================")
     sb.appendLine("Gracias por su compra")
+    if (freeVersionFooter) {
+      // Marca del plan gratuito: solo la añade quien llama en FREE.
+      sb.appendLine("Versión gratuita — Stock+ por PedritoTech")
+    }
 
     return sb.toString().trimEnd()
   }
