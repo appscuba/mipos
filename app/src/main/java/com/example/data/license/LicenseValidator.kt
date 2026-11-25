@@ -29,7 +29,7 @@ class LicenseValidator(
         setRequestProperty("Accept", "application/json")
         setRequestProperty("Cache-Control", "no-store")
       }
-      val payload = JSONObject().put("device_id", deviceId.trim()).put("phone", phone.trim()).toString()
+      val payload = createLicenseValidationPayload(deviceId, phone)
       connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
       val code = connection.responseCode
       val stream = if (code in 200..299) connection.inputStream else connection.errorStream
@@ -59,3 +59,7 @@ private fun unavailableLicenseResult() = LicenseValidationResult(
   status = "unavailable",
   message = "No se pudo consultar el servidor. Comprueba tu conexión e inténtalo de nuevo.",
 )
+
+/** Contrato exacto del endpoint WordPress Servidor de Licencias 1.3.0. */
+internal fun createLicenseValidationPayload(deviceId: String, phone: String): String =
+  JSONObject().put("device_id", deviceId.trim()).put("phone", phone.trim()).toString()
