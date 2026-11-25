@@ -413,6 +413,7 @@ fun MainAppShell(
                   businessIdFlow = activeBusinessIdFlow,
                   inventoryRepository = container.inventoryRepository,
                   preferences = container.preferences,
+                  currentUserIdProvider = currentUserIdProvider,
                 ),
               )
               InventoryScreen(
@@ -420,6 +421,8 @@ fun MainAppShell(
                 onOpenProductDetail = { productId ->
                   navController.navigate(AppDestination.ProductDetail(productId))
                 },
+                canManageProducts = activeSession.hasPermission(AppPermissions.PRODUCTS_MANAGE),
+                canAdjustStock = activeSession.hasPermission(AppPermissions.STOCK_ADJUST),
               )
             }
             composable<AppDestination.ProductDetail> { backStackEntry ->
@@ -429,6 +432,7 @@ fun MainAppShell(
                   businessIdFlow = activeBusinessIdFlow,
                   inventoryRepository = container.inventoryRepository,
                   preferences = container.preferences,
+                  currentUserIdProvider = currentUserIdProvider,
                 ),
               )
               val invState by inventoryVm.uiState.collectAsStateWithLifecycle()
@@ -438,12 +442,15 @@ fun MainAppShell(
                   productId = route.productId,
                   inventoryRepository = container.inventoryRepository,
                   businessRepository = container.businessRepository,
+                  currentUserIdProvider = currentUserIdProvider,
                 ),
               )
               ProductDetailScreen(
                 viewModel = detailVm,
                 categories = invState.categories,
                 onNavigateBack = { navController.popBackStack() },
+                canManageProducts = activeSession.hasPermission(AppPermissions.PRODUCTS_MANAGE),
+                canAdjustStock = activeSession.hasPermission(AppPermissions.STOCK_ADJUST),
               )
             }
             composable<AppDestination.Finance> {
@@ -590,6 +597,7 @@ fun MainAppShell(
             composable<AppDestination.BusinessSettings> {
               val settingsVm: BusinessSettingsViewModel = viewModel(
                 factory = BusinessSettingsViewModel.Factory(
+                  businessIdFlow = activeBusinessIdFlow,
                   businessRepository = container.businessRepository,
                   preferences = container.preferences,
                 ),
