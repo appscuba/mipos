@@ -537,15 +537,18 @@ class ExampleRobolectricTest {
     }
     composeTestRule.onNodeWithTag("pos_open_cart_button").performClick()
 
-    // Esperar a que el diálogo de cobro termine de componerse antes de buscar
-    // y desplazar el chip. Evita la carrera entre la animación del diálogo y
-    // el árbol de semántica usado por Compose UI tests.
-    composeTestRule.waitUntil(timeoutMillis = 10_000) {
-      composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty() &&
-        composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
+    // Esperar primero al diálogo y al contenedor desplazable. Los chips de pago
+    // pueden quedar fuera del viewport y no aparecer en el árbol semántico hasta
+    // desplazar el contenido; por eso no se deben exigir antes del scroll.
+    composeTestRule.waitUntil(timeoutMillis = 15_000) {
+      composeTestRule.onAllNodesWithText("Cobrar (1)").fetchSemanticsNodes().isNotEmpty() &&
+        composeTestRule.onAllNodesWithTag("pos_checkout_scroll").fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag("pos_checkout_scroll")
       .performScrollToNode(hasTestTag("pos_pay_mode_CREDIT"))
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("pos_pay_mode_CREDIT").fetchSemanticsNodes().isNotEmpty()
+    }
     composeTestRule.onNodeWithTag("pos_pay_mode_CREDIT").performClick()
     composeTestRule.onNodeWithTag("pos_confirm_sale_button").performClick()
 
