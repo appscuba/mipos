@@ -138,6 +138,57 @@ class UsersAuditViewModel(
     }
   }
 
+  fun updateUserProfile(
+    targetUserId: Long,
+    fullName: String,
+    username: String,
+    roleCode: String,
+    onSuccess: () -> Unit,
+  ) {
+    val state = uiState.value
+    if (state.businessId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        securityRepository.updateUserProfile(
+          businessId = state.businessId,
+          targetUserId = targetUserId,
+          fullName = fullName,
+          username = username,
+          roleCode = roleCode,
+          actorUserId = state.activeSession.user?.id,
+        )
+        feedbackMessage.value = "Usuario actualizado"
+        onSuccess()
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo actualizar el usuario."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
+  fun deleteUser(targetUserId: Long, onSuccess: () -> Unit) {
+    val state = uiState.value
+    if (state.businessId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        securityRepository.deleteUser(
+          businessId = state.businessId,
+          targetUserId = targetUserId,
+          actorUserId = state.activeSession.user?.id,
+        )
+        feedbackMessage.value = "Usuario eliminado"
+        onSuccess()
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo eliminar el usuario."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
   fun toggleUserActive(targetUserId: Long, isActive: Boolean) {
     val state = uiState.value
     if (state.businessId <= 0L) return
