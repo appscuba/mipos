@@ -1,6 +1,9 @@
 package com.example.data.license
 
 object PlanLimits {
+  /** Acceso temporal abierto: todas las funciones están disponibles sin validar una licencia. */
+  const val FREE_ACCESS_MODE = true
+
   const val TRIAL_DAYS = 15
   const val LICENSE_GRACE_DAYS = 7
   const val REVALIDATE_AFTER_HOURS = 24
@@ -31,6 +34,7 @@ data class LicenseSnapshot(
       now - lastSuccessfulValidation <= PlanLimits.LICENSE_GRACE_DAYS * 24L * 60L * 60L * 1000L
 
   fun plan(now: Long = System.currentTimeMillis()): PlanStatus = when {
+    PlanLimits.FREE_ACCESS_MODE -> PlanStatus.LICENSED
     isUsable(now) -> PlanStatus.LICENSED
     firstLaunchAt > 0L && now < firstLaunchAt + PlanLimits.TRIAL_DAYS * 24L * 60L * 60L * 1000L -> PlanStatus.TRIAL
     else -> PlanStatus.FREE
