@@ -71,6 +71,8 @@ fun ProductDetailScreen(
   categories: List<CategoryEntity>,
   onNavigateBack: () -> Unit,
   modifier: Modifier = Modifier,
+  canManageProducts: Boolean = true,
+  canAdjustStock: Boolean = true,
 ) {
   BackHandler(onBack = onNavigateBack)
 
@@ -137,12 +139,14 @@ fun ProductDetailScreen(
                 Spacer(Modifier.width(6.dp))
                 Text("Volver al Inventario")
               }
-              IconButton(onClick = { showArchiveConfirm = true }) {
-                Icon(
-                  Icons.Filled.DeleteOutline,
-                  contentDescription = "Archivar producto",
-                  tint = MaterialTheme.colorScheme.error,
-                )
+              if (canManageProducts) {
+                IconButton(onClick = { showArchiveConfirm = true }) {
+                  Icon(
+                    Icons.Filled.DeleteOutline,
+                    contentDescription = "Archivar producto",
+                    tint = MaterialTheme.colorScheme.error,
+                  )
+                }
               }
             }
           }
@@ -196,23 +200,27 @@ fun ProductDetailScreen(
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                  Button(
-                    onClick = { showAdjustDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(48.dp).testTag("detail_adjust_button"),
-                  ) {
-                    Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Ajustar Stock")
+                  if (canAdjustStock) {
+                    Button(
+                      onClick = { showAdjustDialog = true },
+                      shape = RoundedCornerShape(12.dp),
+                      modifier = Modifier.weight(1f).height(48.dp).testTag("detail_adjust_button"),
+                    ) {
+                      Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                      Spacer(Modifier.width(6.dp))
+                      Text("Ajustar Stock")
+                    }
                   }
-                  OutlinedButton(
-                    onClick = { showEditDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
-                  ) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Editar")
+                  if (canManageProducts) {
+                    OutlinedButton(
+                      onClick = { showEditDialog = true },
+                      shape = RoundedCornerShape(12.dp),
+                      modifier = Modifier.weight(1f).height(48.dp),
+                    ) {
+                      Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                      Spacer(Modifier.width(6.dp))
+                      Text("Editar")
+                    }
                   }
                 }
               }
@@ -235,10 +243,12 @@ fun ProductDetailScreen(
                   verticalAlignment = Alignment.CenterVertically,
                 ) {
                   Text("Presentaciones y Equivalencias", style = MaterialTheme.typography.titleMedium)
-                  TextButton(onClick = { showAddPresDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Añadir")
+                  if (canManageProducts) {
+                    TextButton(onClick = { showAddPresDialog = true }) {
+                      Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                      Spacer(Modifier.width(4.dp))
+                      Text("Añadir")
+                    }
                   }
                 }
                 if (detail.presentations.isEmpty()) {
@@ -263,8 +273,10 @@ fun ProductDetailScreen(
                           color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                       }
-                      IconButton(onClick = { viewModel.deactivatePresentation(state.businessId, pres.id) }) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = "Quitar ${pres.name}", modifier = Modifier.size(18.dp))
+                      if (canManageProducts) {
+                        IconButton(onClick = { viewModel.deactivatePresentation(state.businessId, pres.id) }) {
+                          Icon(Icons.Filled.DeleteOutline, contentDescription = "Quitar ${pres.name}", modifier = Modifier.size(18.dp))
+                        }
                       }
                     }
                   }
