@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Solid background sampled from the artwork's own dark navy background
-     (#013799), so the padded artwork blends into it seamlessly. -->
+<!-- Fondo blanco del icono (marca limpia verde/naranja tipo StockLy):
+     el mismo blanco del arte del primer plano, para que se fundan. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#013799" />
+    <solid android:color="#FFFFFF" />
 </shape>
