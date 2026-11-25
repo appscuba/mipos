@@ -1,6 +1,7 @@
 package com.example.data.license
 
 import android.content.Context
+import android.os.SystemClock
 import com.example.BuildConfig
 import com.example.data.preferences.AppPreferencesDataStore
 import kotlinx.coroutines.flow.first
@@ -19,11 +20,14 @@ import java.time.Instant
  * 1) La clave introducida se guarda en las preferencias (DataStore).
  * 2) Al arrancar: si hay conexión, se valida contra LicenseHub y se
  *    VERIFICA LA FIRMA Ed25519 de la respuesta antes de aceptarla.
- * 3) Sin conexión: solo vale el grant offline firmado y vigente
- *    (48 h); su vencimiento verificado se persiste en preferencias
- *    para que PlanRules/LicenseRules decidan sincrónicamente.
- * 4) El servidor es la autoridad: suspendida, revocada o vencida
- *    bloquean aunque el equipo lleve días sin conectarse (al validar).
+ * 3) Sin conexión: manda la CUENTA REGRESIVA local — al validar se
+ *    ancla el tiempo que le queda a la licencia según el servidor
+ *    (vencimiento − hora del servidor, ambos firmados) y desde ahí
+ *    corre con el reloj monotónico del equipo, inmune a cambios de
+ *    hora del sistema. Ver LicenseCountdown.
+ * 4) El servidor es la autoridad: al reconsultar (cada 24 h si hay
+ *    conexión), suspendida, revocada o vencida bloquean y la
+ *    renovación re-ancla la cuenta con el tiempo nuevo.
  */
 class LicenseManager(
     context: Context,
@@ -74,7 +78,7 @@ class LicenseManager(
         val id = installationId()
         return client.validate(key, id, appVersion()).fold(
             onSuccess = { response -> handleResponse(response, key) },
-            onFailure = { offlineFallback(key, "Sin conexión. Se usa la autorización temporal.") }
+            onFailure = { offlineFallback(key, "Sin conexión. Se usa la cuenta regresiva local.") }
         )
     }
 
@@ -84,9 +88,34 @@ class LicenseManager(
      * conexión no pasa nada: manda el grant firmado vigente.
      */
     suspend fun refreshIfStale() {
+        reanchorCountdown()
         val prefs = preferences.preferencesFlow.first()
         if (!LicenseRules.needsRevalidation(prefs, System.currentTimeMillis())) return
         check()
+    }
+
+    /**
+     * Re-ancla la cuenta regresiva al abrir la app: el tiempo ya
+     * transcurrido queda descontado del restante guardado y las
+     * marcas de ambos relojes se renuevan. Así, tras un reinicio (el
+     * reloj monotónico vuelve a cero), el tiempo apagado también
+     * queda contado y no se puede recuperar cambiando la hora.
+     */
+    private suspend fun reanchorCountdown() {
+        val prefs = preferences.preferencesFlow.first()
+        if (prefs.licenseStatus != LicenseRules.STATUS_ACTIVE) return
+        if (prefs.licenseExpiresAt <= 0L) return
+        if (prefs.licenseAnchorRemainingMs < 0L) return
+        val nowWall = System.currentTimeMillis()
+        val nowElapsed = SystemClock.elapsedRealtime()
+        val remaining = LicenseCountdown.remainingMs(
+            anchorRemainingMs = prefs.licenseAnchorRemainingMs,
+            anchorElapsedMs = prefs.licenseAnchorElapsedMs,
+            anchorWallMs = prefs.licenseAnchorWallMs,
+            nowElapsedMs = nowElapsed,
+            nowWallMs = nowWall
+        )
+        preferences.saveLicenseCountdownAnchor(remaining, nowElapsed, nowWall)
     }
 
     private suspend fun handleResponse(response: LicenseResponse, key: String): CheckResult {
@@ -115,11 +144,24 @@ class LicenseManager(
             } else {
                 now + LicenseRules.GRACE_MS
             }
+            // Cuenta regresiva: el restante nace de DOS datos del
+            // servidor (su hora y el vencimiento, ambos dentro de la
+            // respuesta firmada), nunca del reloj del teléfono. Sin
+            // fecha de fin = licencia de por vida (sin ancla).
+            val serverNowMs = parseIsoToMs(response.serverTime)
+            val anchorRemainingMs = when {
+                expiresMs <= 0L -> LicenseCountdown.NO_ANCHOR
+                serverNowMs > 0L -> maxOf(0L, expiresMs - serverNowMs)
+                else -> maxOf(0L, expiresMs - now)
+            }
             preferences.saveLicenseValidation(
                 status = LicenseRules.STATUS_ACTIVE,
                 expiresAt = expiresMs,
                 validatedAt = now,
-                grantExpiresAt = grantExpiresMs
+                grantExpiresAt = grantExpiresMs,
+                anchorRemainingMs = anchorRemainingMs,
+                anchorElapsedMs = SystemClock.elapsedRealtime(),
+                anchorWallMs = now
             )
             return CheckResult(
                 State.ACTIVE,
@@ -153,15 +195,20 @@ class LicenseManager(
         )
     }
 
-    private suspend fun offlineFallback(key: String, message: String): CheckResult =
-        if (grants.savedLicenseKey() == key && grants.hasValidGrant(installationId())) {
+    private suspend fun offlineFallback(key: String, message: String): CheckResult {
+        // Sin conexión manda la cuenta regresiva: si la licencia ya
+        // se validó una vez y aún le queda tiempo, sigue activa.
+        val prefs = preferences.preferencesFlow.first()
+        val keyMatches = prefs.licenseKey == key || grants.savedLicenseKey() == key
+        return if (keyMatches && LicenseRules.isUsable(prefs, System.currentTimeMillis())) {
             CheckResult(State.OFFLINE_ACTIVE, message)
         } else {
             CheckResult(
                 State.BLOCKED,
-                "Sin conexión y sin autorización temporal vigente. Conéctate para validar tu licencia."
+                "Sin conexión y sin una licencia vigente en este equipo. Conéctate para validar tu licencia."
             )
         }
+    }
 
     /** Estado corto que se guarda en preferencias (compatible con la UI). */
     private fun statusToStore(response: LicenseResponse): String = when (response.code) {
