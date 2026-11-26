@@ -404,25 +404,47 @@ fun SetupScreen(
             }
 
             if (state.enableSecondaryCurrency) {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-              ) {
-                OutlinedTextField(
-                  value = state.secondaryCurrencyCode,
-                  onValueChange = viewModel::updateSecondaryCurrencyCode,
-                  label = { Text("Código") },
-                  singleLine = true,
-                  modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                  value = state.secondaryCurrencyRate,
-                  onValueChange = viewModel::updateSecondaryCurrencyRate,
-                  label = { Text("1 ${state.secondaryCurrencyCode} = ? ${state.primaryCurrency}") },
-                  singleLine = true,
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                  modifier = Modifier.weight(2f),
-                )
+              BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                if (maxWidth < 440.dp) {
+                  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                      value = state.secondaryCurrencyCode,
+                      onValueChange = viewModel::updateSecondaryCurrencyCode,
+                      label = { Text("Código") },
+                      singleLine = true,
+                      modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                      value = state.secondaryCurrencyRate,
+                      onValueChange = viewModel::updateSecondaryCurrencyRate,
+                      label = { Text("1 ${state.secondaryCurrencyCode} = ? ${state.primaryCurrency}") },
+                      singleLine = true,
+                      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                      modifier = Modifier.fillMaxWidth(),
+                    )
+                  }
+                } else {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                  ) {
+                    OutlinedTextField(
+                      value = state.secondaryCurrencyCode,
+                      onValueChange = viewModel::updateSecondaryCurrencyCode,
+                      label = { Text("Código") },
+                      singleLine = true,
+                      modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                      value = state.secondaryCurrencyRate,
+                      onValueChange = viewModel::updateSecondaryCurrencyRate,
+                      label = { Text("1 ${state.secondaryCurrencyCode} = ? ${state.primaryCurrency}") },
+                      singleLine = true,
+                      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                      modifier = Modifier.weight(2f),
+                    )
+                  }
+                }
               }
             }
           }
