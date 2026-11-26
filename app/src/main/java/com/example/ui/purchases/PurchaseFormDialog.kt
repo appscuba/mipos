@@ -439,26 +439,46 @@ fun PurchaseFormDialog(
                   }
                 }
 
-                Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                  OutlinedTextField(
-                    value = lineQtyText,
-                    onValueChange = { lineQtyText = it },
-                    label = { Text("Cantidad (${selectedUnit.label})") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f).testTag("purchase_line_qty_input"),
-                  )
-                  OutlinedTextField(
-                    value = lineUnitPriceText,
-                    onValueChange = { lineUnitPriceText = it },
-                    label = { Text("Precio x ${selectedUnit.label} ($selectedCurrencyCode)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f).testTag("purchase_line_price_input"),
-                  )
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                  if (maxWidth < 440.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                      OutlinedTextField(
+                        value = lineQtyText,
+                        onValueChange = { lineQtyText = it },
+                        label = { Text("Cantidad (${selectedUnit.label})") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth().testTag("purchase_line_qty_input"),
+                      )
+                      OutlinedTextField(
+                        value = lineUnitPriceText,
+                        onValueChange = { lineUnitPriceText = it },
+                        label = { Text("Precio x ${selectedUnit.label} ($selectedCurrencyCode)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth().testTag("purchase_line_price_input"),
+                      )
+                    }
+                  } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                      OutlinedTextField(
+                        value = lineQtyText,
+                        onValueChange = { lineQtyText = it },
+                        label = { Text("Cantidad (${selectedUnit.label})") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f).testTag("purchase_line_qty_input"),
+                      )
+                      OutlinedTextField(
+                        value = lineUnitPriceText,
+                        onValueChange = { lineUnitPriceText = it },
+                        label = { Text("Precio x ${selectedUnit.label} ($selectedCurrencyCode)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f).testTag("purchase_line_price_input"),
+                      )
+                    }
+                  }
                 }
 
                 Button(
@@ -553,34 +573,62 @@ fun PurchaseFormDialog(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-          ) {
-            OutlinedTextField(
-              value = discountText,
-              onValueChange = { discountText = it },
-              label = { Text("Descuento") },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-              modifier = Modifier.weight(1f).testTag("purchase_discount_input"),
-            )
-            OutlinedTextField(
-              value = transportText,
-              onValueChange = { transportText = it },
-              label = { Text("Transporte") },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-              modifier = Modifier.weight(1f).testTag("purchase_transport_input"),
-            )
-            OutlinedTextField(
-              value = extraExpensesText,
-              onValueChange = { extraExpensesText = it },
-              label = { Text("Otros") },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-              modifier = Modifier.weight(1f).testTag("purchase_extra_input"),
-            )
+          BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth < 520.dp) {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                  value = discountText,
+                  onValueChange = { discountText = it },
+                  label = { Text("Descuento") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.fillMaxWidth().testTag("purchase_discount_input"),
+                )
+                OutlinedTextField(
+                  value = transportText,
+                  onValueChange = { transportText = it },
+                  label = { Text("Transporte") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.fillMaxWidth().testTag("purchase_transport_input"),
+                )
+                OutlinedTextField(
+                  value = extraExpensesText,
+                  onValueChange = { extraExpensesText = it },
+                  label = { Text("Otros") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.fillMaxWidth().testTag("purchase_extra_input"),
+                )
+              }
+            } else {
+              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                  value = discountText,
+                  onValueChange = { discountText = it },
+                  label = { Text("Descuento") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(1f).testTag("purchase_discount_input"),
+                )
+                OutlinedTextField(
+                  value = transportText,
+                  onValueChange = { transportText = it },
+                  label = { Text("Transporte") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(1f).testTag("purchase_transport_input"),
+                )
+                OutlinedTextField(
+                  value = extraExpensesText,
+                  onValueChange = { extraExpensesText = it },
+                  label = { Text("Otros") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(1f).testTag("purchase_extra_input"),
+                )
+              }
+            }
           }
 
           // 5. Forma de pago y deuda
