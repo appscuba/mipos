@@ -71,6 +71,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.core.common.PersistentLogoStorage
+import kotlinx.coroutines.launch
 import com.example.ui.theme.ThemeMode
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -81,12 +83,24 @@ fun BusinessSettingsScreen(
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
+  val scope = androidx.compose.runtime.rememberCoroutineScope()
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   var showResetWarningDialog by remember { mutableStateOf(false) }
   val picker = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia(),
   ) { uri: Uri? ->
-    viewModel.updateLogoUri(uri?.toString())
+    if (uri != null) {
+      scope.launch {
+        runCatching { PersistentLogoStorage.copyIntoAppStorage(context, uri) }
+          .onSuccess { savedUri ->
+            viewModel.updateLogoUri(savedUri)
+            viewModel.saveSettings()
+          }
+          .onFailure { error ->
+            viewModel.updateLogoUri(null)
+          }
+      }
+    }
   }
 
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
