@@ -247,12 +247,19 @@ fun ProductDetailScreen(
                   horizontalArrangement = Arrangement.SpaceBetween,
                   verticalAlignment = Alignment.CenterVertically,
                 ) {
-                  Text("Presentaciones y Equivalencias", style = MaterialTheme.typography.titleMedium)
+                  Text(
+                    "Presentaciones y Equivalencias",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                  )
                   if (canManageProducts) {
-                    TextButton(onClick = { showAddPresDialog = true }) {
+                    TextButton(
+                      onClick = { showAddPresDialog = true },
+                      contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
                       Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                       Spacer(Modifier.width(4.dp))
-                      Text("Añadir")
+                      Text("Añadir", maxLines = 1, softWrap = false)
                     }
                   }
                 }
