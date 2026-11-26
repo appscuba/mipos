@@ -2,6 +2,7 @@ package com.example.ui.pos
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -685,26 +686,52 @@ fun PosCartCheckoutContent(
         }
 
         if (showExtras) {
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-              value = discountText,
-              onValueChange = { text ->
-                discountText = text
-                val parsed = MoneyMath.parseMoneyOrNull(text) ?: MoneyMath.ZERO
-                onDiscountChange(parsed.max(MoneyMath.ZERO))
-              },
-              label = { Text("Descuento") },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-              modifier = Modifier.weight(0.45f).testTag("pos_discount_input"),
-            )
-            OutlinedTextField(
-              value = notes,
-              onValueChange = { notes = it },
-              label = { Text("Nota (opcional)") },
-              singleLine = true,
-              modifier = Modifier.weight(0.55f),
-            )
+          BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth < 440.dp) {
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                  value = discountText,
+                  onValueChange = { text ->
+                    discountText = text
+                    val parsed = MoneyMath.parseMoneyOrNull(text) ?: MoneyMath.ZERO
+                    onDiscountChange(parsed.max(MoneyMath.ZERO))
+                  },
+                  label = { Text("Descuento") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.fillMaxWidth().testTag("pos_discount_input"),
+                )
+                OutlinedTextField(
+                  value = notes,
+                  onValueChange = { notes = it },
+                  label = { Text("Nota (opcional)") },
+                  singleLine = true,
+                  modifier = Modifier.fillMaxWidth(),
+                )
+              }
+            } else {
+              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                  value = discountText,
+                  onValueChange = { text ->
+                    discountText = text
+                    val parsed = MoneyMath.parseMoneyOrNull(text) ?: MoneyMath.ZERO
+                    onDiscountChange(parsed.max(MoneyMath.ZERO))
+                  },
+                  label = { Text("Descuento") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                  modifier = Modifier.weight(0.45f).testTag("pos_discount_input"),
+                )
+                OutlinedTextField(
+                  value = notes,
+                  onValueChange = { notes = it },
+                  label = { Text("Nota (opcional)") },
+                  singleLine = true,
+                  modifier = Modifier.weight(0.55f),
+                )
+              }
+            }
           }
         }
       }
