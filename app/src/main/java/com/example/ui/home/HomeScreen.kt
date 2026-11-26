@@ -76,7 +76,7 @@ fun HomeScreen(
         .widthIn(max = 920.dp)
         .fillMaxSize()
         .verticalScroll(rememberScrollState())
-        .padding(16.dp),
+        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 168.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
       // Business Hero Status Card

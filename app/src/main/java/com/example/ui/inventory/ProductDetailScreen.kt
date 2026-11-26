@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -125,7 +126,7 @@ fun ProductDetailScreen(
             .widthIn(max = 920.dp)
             .fillMaxSize()
             .testTag("detail_kardex_list"),
-          contentPadding = PaddingValues(16.dp),
+          contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 168.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
           item {
@@ -180,18 +181,20 @@ fun ProductDetailScreen(
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                  Column {
+                  Column(modifier = Modifier.weight(1f)) {
                     Text("Precio de venta", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                       MoneyMath.format(product.salePrice, state.primaryCurrency),
                       style = MonoMetricMedium,
+                      maxLines = 1,
                     )
                   }
-                  Column(horizontalAlignment = Alignment.End) {
+                  Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                     Text("Costo promedio", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                       MoneyMath.format(product.avgCostPerSaleUnit, state.primaryCurrency),
                       style = MonoMetricMedium,
+                      maxLines = 1,
                     )
                   }
                 }
@@ -204,22 +207,24 @@ fun ProductDetailScreen(
                     Button(
                       onClick = { showAdjustDialog = true },
                       shape = RoundedCornerShape(12.dp),
-                      modifier = Modifier.weight(1f).height(48.dp).testTag("detail_adjust_button"),
+                      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                      modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("detail_adjust_button"),
                     ) {
                       Icon(Icons.Filled.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
                       Spacer(Modifier.width(6.dp))
-                      Text("Ajustar Stock")
+                      Text("Ajustar Stock", maxLines = 1)
                     }
                   }
                   if (canManageProducts) {
                     OutlinedButton(
                       onClick = { showEditDialog = true },
                       shape = RoundedCornerShape(12.dp),
-                      modifier = Modifier.weight(1f).height(48.dp),
+                      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                      modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                     ) {
                       Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                       Spacer(Modifier.width(6.dp))
-                      Text("Editar")
+                      Text("Editar", maxLines = 1)
                     }
                   }
                 }

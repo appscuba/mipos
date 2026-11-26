@@ -108,7 +108,7 @@ fun BackupsScreen(
           .widthIn(max = 920.dp)
           .fillMaxSize()
           .testTag("backups_list"),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 168.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         item {

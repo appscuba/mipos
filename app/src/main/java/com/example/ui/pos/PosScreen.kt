@@ -332,7 +332,7 @@ private fun PosCatalogPane(
 ) {
   LazyColumn(
     modifier = modifier.testTag("pos_catalog_list"),
-    contentPadding = PaddingValues(14.dp),
+    contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 168.dp),
     verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
     item {
