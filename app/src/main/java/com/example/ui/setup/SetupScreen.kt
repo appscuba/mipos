@@ -196,42 +196,35 @@ fun SetupScreen(
         ) {
           BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             val compact = maxWidth < 440.dp
-            val themeDescription: @Composable () -> Unit = {
-              Column(modifier = if (compact) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
-                Text("Apariencia", style = MaterialTheme.typography.titleMedium)
-                Text(
-                  "Elige tema oscuro o claro (editable luego)",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-              }
-            }
-            val themeOptions: @Composable () -> Unit = {
-              FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-              ) {
-                FilterChip(
-                  selected = state.themeMode == ThemeMode.DARK,
-                  onClick = { viewModel.selectThemeMode(ThemeMode.DARK) },
-                  label = { Text("Oscuro", maxLines = 1) },
-                  leadingIcon = { Icon(Icons.Filled.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                  modifier = Modifier.testTag("setup_theme_dark"),
-                )
-                FilterChip(
-                  selected = state.themeMode == ThemeMode.LIGHT,
-                  onClick = { viewModel.selectThemeMode(ThemeMode.LIGHT) },
-                  label = { Text("Claro", maxLines = 1) },
-                  leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                  modifier = Modifier.testTag("setup_theme_light"),
-                )
-              }
-            }
             if (compact) {
               Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                themeDescription()
-                themeOptions()
+                Column {
+                  Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+                  Text(
+                    "Elige tema oscuro o claro (editable luego)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+                FlowRow(
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                  verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                  FilterChip(
+                    selected = state.themeMode == ThemeMode.DARK,
+                    onClick = { viewModel.selectThemeMode(ThemeMode.DARK) },
+                    label = { Text("Oscuro", maxLines = 1) },
+                    leadingIcon = { Icon(Icons.Filled.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    modifier = Modifier.testTag("setup_theme_dark"),
+                  )
+                  FilterChip(
+                    selected = state.themeMode == ThemeMode.LIGHT,
+                    onClick = { viewModel.selectThemeMode(ThemeMode.LIGHT) },
+                    label = { Text("Claro", maxLines = 1) },
+                    leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    modifier = Modifier.testTag("setup_theme_light"),
+                  )
+                }
               }
             } else {
               Row(
@@ -239,8 +232,33 @@ fun SetupScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
               ) {
-                themeDescription()
-                themeOptions()
+                Column(modifier = Modifier.weight(1f)) {
+                  Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+                  Text(
+                    "Elige tema oscuro o claro (editable luego)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+                FlowRow(
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                  verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                  FilterChip(
+                    selected = state.themeMode == ThemeMode.DARK,
+                    onClick = { viewModel.selectThemeMode(ThemeMode.DARK) },
+                    label = { Text("Oscuro", maxLines = 1) },
+                    leadingIcon = { Icon(Icons.Filled.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    modifier = Modifier.testTag("setup_theme_dark"),
+                  )
+                  FilterChip(
+                    selected = state.themeMode == ThemeMode.LIGHT,
+                    onClick = { viewModel.selectThemeMode(ThemeMode.LIGHT) },
+                    label = { Text("Claro", maxLines = 1) },
+                    leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    modifier = Modifier.testTag("setup_theme_light"),
+                  )
+                }
               }
             }
           }
