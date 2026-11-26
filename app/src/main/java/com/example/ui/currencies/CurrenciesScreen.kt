@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,6 +79,7 @@ fun CurrenciesScreen(
   }
 
   Scaffold(
+    contentWindowInsets = WindowInsets(0.dp),
     modifier = modifier.fillMaxSize(),
     snackbarHost = { SnackbarHost(snackbarHostState) },
     floatingActionButton = {
@@ -105,7 +107,7 @@ fun CurrenciesScreen(
           .widthIn(max = 920.dp)
           .fillMaxSize()
           .testTag("currencies_list"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 168.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         item {

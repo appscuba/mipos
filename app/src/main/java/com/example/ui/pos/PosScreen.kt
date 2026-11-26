@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -106,6 +107,7 @@ fun PosScreen(
   }
 
   Scaffold(
+    contentWindowInsets = WindowInsets(0.dp),
     modifier = modifier.fillMaxSize(),
     snackbarHost = { SnackbarHost(snackbarHostState) },
   ) { innerPadding ->
@@ -332,7 +334,7 @@ private fun PosCatalogPane(
 ) {
   LazyColumn(
     modifier = modifier.testTag("pos_catalog_list"),
-    contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 168.dp),
+    contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 88.dp),
     verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
     item {

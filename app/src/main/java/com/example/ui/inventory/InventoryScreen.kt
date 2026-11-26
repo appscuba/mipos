@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -88,6 +89,7 @@ fun InventoryScreen(
   }
 
   Scaffold(
+    contentWindowInsets = WindowInsets(0.dp),
     modifier = modifier.fillMaxSize(),
     snackbarHost = { SnackbarHost(snackbarHostState) },
     floatingActionButton = {
@@ -115,7 +117,7 @@ fun InventoryScreen(
           .widthIn(max = 920.dp)
           .fillMaxSize()
           .testTag("inventory_list"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 168.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         // Inventory Valuation & Alerts Strip

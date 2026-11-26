@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -100,7 +101,7 @@ fun ReportsScreen(
     }
   }
 
-  Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+  Scaffold(contentWindowInsets = WindowInsets(0.dp), modifier = modifier.fillMaxSize()) { innerPadding ->
     Box(
       modifier = Modifier
         .fillMaxSize()
@@ -112,7 +113,7 @@ fun ReportsScreen(
           .widthIn(max = 920.dp)
           .fillMaxSize()
           .testTag("reports_list"),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 168.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         item {
