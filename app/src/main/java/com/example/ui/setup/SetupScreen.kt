@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -193,36 +194,54 @@ fun SetupScreen(
           shape = MaterialTheme.shapes.medium,
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text("Apariencia", style = MaterialTheme.typography.titleMedium)
-              Text(
-                "Elige tema oscuro o claro (editable luego)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
+          BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            val compact = maxWidth < 440.dp
+            val themeDescription: @Composable () -> Unit = {
+              Column(modifier = if (compact) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
+                Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+                Text(
+                  "Elige tema oscuro o claro (editable luego)",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              FilterChip(
-                selected = state.themeMode == ThemeMode.DARK,
-                onClick = { viewModel.selectThemeMode(ThemeMode.DARK) },
-                label = { Text("Oscuro") },
-                leadingIcon = { Icon(Icons.Filled.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                modifier = Modifier.testTag("setup_theme_dark"),
-              )
-              FilterChip(
-                selected = state.themeMode == ThemeMode.LIGHT,
-                onClick = { viewModel.selectThemeMode(ThemeMode.LIGHT) },
-                label = { Text("Claro") },
-                leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                modifier = Modifier.testTag("setup_theme_light"),
-              )
+            val themeOptions: @Composable () -> Unit = {
+              FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+              ) {
+                FilterChip(
+                  selected = state.themeMode == ThemeMode.DARK,
+                  onClick = { viewModel.selectThemeMode(ThemeMode.DARK) },
+                  label = { Text("Oscuro", maxLines = 1) },
+                  leadingIcon = { Icon(Icons.Filled.DarkMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                  modifier = Modifier.testTag("setup_theme_dark"),
+                )
+                FilterChip(
+                  selected = state.themeMode == ThemeMode.LIGHT,
+                  onClick = { viewModel.selectThemeMode(ThemeMode.LIGHT) },
+                  label = { Text("Claro", maxLines = 1) },
+                  leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                  modifier = Modifier.testTag("setup_theme_light"),
+                )
+              }
+            }
+            if (compact) {
+              Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                themeDescription()
+                themeOptions()
+              }
+            } else {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+              ) {
+                themeDescription()
+                themeOptions()
+              }
             }
           }
         }
