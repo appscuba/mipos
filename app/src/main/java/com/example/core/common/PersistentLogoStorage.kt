@@ -30,7 +30,7 @@ object PersistentLogoStorage {
       } ?: error("No se pudo leer la imagen seleccionada.")
       check(temporary.length() > 0L) { "La imagen seleccionada está vacía." }
       if (destination.exists()) destination.delete()
-      check(temporary.renameTo(destination)) {
+      if (!temporary.renameTo(destination)) {
         temporary.copyTo(destination, overwrite = true)
         temporary.delete()
       }
