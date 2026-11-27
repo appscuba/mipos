@@ -53,7 +53,8 @@ class SetupViewModel(
 
   fun updateBusinessName(value: String) = _uiState.update { it.copy(businessName = value, errorMessage = null) }
   fun updateBusinessType(value: String) = _uiState.update { it.copy(businessType = value) }
-  fun updateLogoUri(uri: String?) = _uiState.update { it.copy(logoUri = uri) }
+  fun updateLogoUri(uri: String?) = _uiState.update { it.copy(logoUri = uri, errorMessage = null) }
+  fun updateLogoError(message: String) = _uiState.update { it.copy(errorMessage = message) }
   fun updatePrimaryCurrency(value: String) = _uiState.update { it.copy(primaryCurrency = value.uppercase(), errorMessage = null) }
   fun updateEnableSecondaryCurrency(enabled: Boolean) = _uiState.update { it.copy(enableSecondaryCurrency = enabled) }
   fun updateSecondaryCurrencyCode(value: String) = _uiState.update { it.copy(secondaryCurrencyCode = value.uppercase(), errorMessage = null) }
