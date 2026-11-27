@@ -2,6 +2,8 @@ name: Stock+ - Pruebas y APK Debug
 
 on:
   push:
+    branches: [feature/licensehub-integration, fix/logo-persistence-integrated]
+  pull_request:
     branches: [feature/licensehub-integration]
   workflow_dispatch:
 

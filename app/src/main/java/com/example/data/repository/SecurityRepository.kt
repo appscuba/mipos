@@ -308,6 +308,27 @@ class SecurityRepository(
     }
   }
 
+  suspend fun clearAuditLogs(
+    businessId: Long,
+    actorUserId: Long?,
+  ): Int {
+    requirePermission(actorUserId, AppPermissions.USERS_MANAGE)
+    return db.withTransaction {
+      val actor = actorUserId?.let { securityDao.getUserById(it) }
+      val deletedCount = securityDao.deleteAuditLogs(businessId)
+      securityDao.insertAuditLog(
+        AuditLogEntity(
+          businessId = businessId,
+          userId = actorUserId,
+          action = "AUDIT_LOG_CLEARED",
+          entityType = "AUDIT_LOG",
+          details = "Bitácora vaciada por ${actor?.fullName ?: "Propietario"}; ${deletedCount} registros anteriores eliminados",
+        ),
+      )
+      deletedCount
+    }
+  }
+
   suspend fun switchUser(
     businessId: Long,
     targetUserId: Long,

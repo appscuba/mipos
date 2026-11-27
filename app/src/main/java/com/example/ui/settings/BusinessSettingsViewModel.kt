@@ -93,7 +93,8 @@ class BusinessSettingsViewModel(
 
   fun updateBusinessName(v: String) = _uiState.update { it.copy(businessName = v, statusMessage = null) }
   fun updateBusinessType(v: String) = _uiState.update { it.copy(businessType = v, statusMessage = null) }
-  fun updateLogoUri(v: String?) = _uiState.update { it.copy(logoUri = v, statusMessage = null) }
+  fun updateLogoUri(v: String?) = _uiState.update { it.copy(logoUri = v, statusMessage = null, isError = false) }
+  fun reportLogoSaveError(message: String) = _uiState.update { it.copy(statusMessage = message, isError = true) }
   fun updatePhone(v: String) = _uiState.update { it.copy(phone = v, statusMessage = null) }
   fun updateEmail(v: String) = _uiState.update { it.copy(email = v, statusMessage = null) }
   fun updateAddress(v: String) = _uiState.update { it.copy(address = v, statusMessage = null) }

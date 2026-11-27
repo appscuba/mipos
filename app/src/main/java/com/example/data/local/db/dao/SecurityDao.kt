@@ -80,6 +80,9 @@ interface SecurityDao {
   @Insert
   suspend fun insertAuditLog(log: AuditLogEntity): Long
 
+  @Query("DELETE FROM audit_logs WHERE businessId = :businessId")
+  suspend fun deleteAuditLogs(businessId: Long): Int
+
   @Query("SELECT * FROM audit_logs WHERE businessId = :businessId ORDER BY timestamp DESC, id DESC LIMIT :limit")
   fun observeRecentAuditLogs(businessId: Long, limit: Int = 200): Flow<List<AuditLogEntity>>
 }

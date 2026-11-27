@@ -89,6 +89,7 @@ fun UsersAuditScreen(
   var switchingTarget by remember { mutableStateOf<UserWithRole?>(null) }
   var editingUserTarget by remember { mutableStateOf<UserWithRole?>(null) }
   var deletingUserTarget by remember { mutableStateOf<UserWithRole?>(null) }
+  var showClearAuditDialog by remember { mutableStateOf(false) }
 
   LaunchedEffect(state.feedbackMessage) {
     val msg = state.feedbackMessage
@@ -287,9 +288,21 @@ fun UsersAuditScreen(
         if (canManageUsers) {
           item {
             Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-              Text("Bitácora de Auditoría (${state.auditLogs.size})", style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Bitácora de Auditoría (${state.auditLogs.size})", style = MaterialTheme.typography.titleMedium)
+              }
+              OutlinedButton(
+                onClick = { showClearAuditDialog = true },
+                enabled = state.auditLogs.isNotEmpty() && !state.isSaving,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("audit_clear_button"),
+              ) {
+                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Vaciar registro de auditoría")
+              }
             }
           }
 
@@ -313,6 +326,30 @@ fun UsersAuditScreen(
         }
       }
     }
+  }
+
+  if (showClearAuditDialog) {
+    AlertDialog(
+      onDismissRequest = { if (!state.isSaving) showClearAuditDialog = false },
+      title = { Text("Vaciar registro de auditoría") },
+      text = {
+        Text("Se eliminarán los registros anteriores de esta tienda. Esta acción no se puede deshacer. Se conservará una nueva entrada indicando quién realizó el vaciado y cuándo.")
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            viewModel.clearAuditLogs()
+            showClearAuditDialog = false
+          },
+          enabled = !state.isSaving,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+          modifier = Modifier.testTag("audit_clear_confirm_button"),
+        ) { Text("Vaciar registro") }
+      },
+      dismissButton = {
+        TextButton(onClick = { showClearAuditDialog = false }, enabled = !state.isSaving) { Text("Cancelar") }
+      },
+    )
   }
 
   if (showCreateDialog) {
