@@ -76,6 +76,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.core.common.PersistentLogoStorage
+import kotlinx.coroutines.launch
 import com.example.R
 import com.example.ui.theme.ThemeMode
 import java.text.SimpleDateFormat
@@ -100,11 +102,18 @@ fun SetupScreen(
 ) {
   val state by viewModel.uiState.collectAsStateWithLifecycle()
   val context = LocalContext.current
+  val scope = androidx.compose.runtime.rememberCoroutineScope()
   var restorePassphrase by remember { mutableStateOf("") }
   val photoPickerLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia(),
   ) { uri: Uri? ->
-    viewModel.updateLogoUri(uri?.toString())
+    if (uri != null) {
+      scope.launch {
+        runCatching { PersistentLogoStorage.copyIntoAppStorage(context, uri) }
+          .onSuccess(viewModel::updateLogoUri)
+          .onFailure { error -> viewModel.updateLogoError(error.message ?: "No se pudo guardar el logotipo.") }
+      }
+    }
   }
   val restoreFileLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.OpenDocument(),
