@@ -174,17 +174,34 @@ fun HistoryScreen(
           }
         }
 
-        // Search
+        // Search: compact, single-line field with a capped width.
         item {
-          OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = viewModel::updateSearch,
-            placeholder = { Text("Buscar por ticket, cliente o producto...") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().testTag("history_search_input"),
-          )
+          Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+          ) {
+            OutlinedTextField(
+              value = state.searchQuery,
+              onValueChange = viewModel::updateSearch,
+              placeholder = {
+                Text(
+                  "Buscar por ticket, cliente o producto...",
+                  maxLines = 1,
+                  softWrap = false,
+                  overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+              },
+              leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+              singleLine = true,
+              textStyle = MaterialTheme.typography.bodyMedium,
+              shape = RoundedCornerShape(14.dp),
+              modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 560.dp)
+                .height(58.dp)
+                .testTag("history_search_input"),
+            )
+          }
         }
 
         // Filters
