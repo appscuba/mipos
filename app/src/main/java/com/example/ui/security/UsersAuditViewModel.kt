@@ -210,6 +210,25 @@ class UsersAuditViewModel(
     }
   }
 
+  fun clearAuditLogs() {
+    val state = uiState.value
+    if (state.businessId <= 0L) return
+    viewModelScope.launch {
+      isSaving.value = true
+      try {
+        val deleted = securityRepository.clearAuditLogs(
+          businessId = state.businessId,
+          actorUserId = state.activeSession.user?.id,
+        )
+        feedbackMessage.value = "Bitácora vaciada. ${deleted} registros eliminados; la operación quedó registrada."
+      } catch (e: Exception) {
+        feedbackMessage.value = e.message ?: "No se pudo vaciar la bitácora."
+      } finally {
+        isSaving.value = false
+      }
+    }
+  }
+
   fun switchUser(targetUserId: Long, pinInput: String?, onSuccess: () -> Unit) {
     val state = uiState.value
     if (state.businessId <= 0L) return
