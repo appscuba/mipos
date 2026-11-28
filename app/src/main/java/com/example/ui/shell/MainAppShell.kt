@@ -504,6 +504,10 @@ fun MainAppShell(
                   businessIdFlow = activeBusinessIdFlow,
                   businessRepository = container.businessRepository,
                   currentUserIdProvider = currentUserIdProvider,
+                  preferences = container.preferences,
+                  rateSyncRepository = container.rateSyncRepository,
+                  licenseGate = container.licenseGate,
+                  ratesSyncScheduler = container.ratesSyncScheduler,
                 ),
               )
               CurrenciesScreen(viewModel = currenciesVm)
