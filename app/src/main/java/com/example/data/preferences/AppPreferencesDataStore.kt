@@ -19,6 +19,12 @@ data class UserPreferences(
   val activeBusinessId: Long = 0L,
   val activeUserId: Long = 0L,
   val lastBackupTimestamp: Long = 0L,
+  // Sincronización de tasas desde elTOQUE (función con licencia).
+  val ratesAutoUpdateEnabled: Boolean = false,
+  val lastRatesSyncAt: Long = 0L,
+  val lastRatesSyncSource: String? = null,
+  val lastRatesSyncError: String? = null,
+  val lastRatesSyncCodes: List<String> = emptyList(),
 )
 
 class AppPreferencesDataStore(context: Context) {
@@ -32,6 +38,12 @@ class AppPreferencesDataStore(context: Context) {
     val ACTIVE_BUSINESS_ID = longPreferencesKey("active_business_id")
     val ACTIVE_USER_ID = longPreferencesKey("active_user_id")
     val LAST_BACKUP_TIMESTAMP = longPreferencesKey("last_backup_timestamp")
+    // Tasas elTOQUE: última sincronización (manual o automática) y su origen.
+    val RATES_AUTO_UPDATE_ENABLED = booleanPreferencesKey("rates_auto_update_enabled")
+    val RATES_LAST_SYNC_AT = longPreferencesKey("rates_last_sync_at")
+    val RATES_LAST_SYNC_SOURCE = stringPreferencesKey("rates_last_sync_source")
+    val RATES_LAST_SYNC_ERROR = stringPreferencesKey("rates_last_sync_error")
+    val RATES_LAST_SYNC_CODES = stringPreferencesKey("rates_last_sync_codes")
   }
 
   val preferencesFlow: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -43,6 +55,12 @@ class AppPreferencesDataStore(context: Context) {
       activeBusinessId = prefs[Keys.ACTIVE_BUSINESS_ID] ?: 0L,
       activeUserId = prefs[Keys.ACTIVE_USER_ID] ?: 0L,
       lastBackupTimestamp = prefs[Keys.LAST_BACKUP_TIMESTAMP] ?: 0L,
+      ratesAutoUpdateEnabled = prefs[Keys.RATES_AUTO_UPDATE_ENABLED] ?: false,
+      lastRatesSyncAt = prefs[Keys.RATES_LAST_SYNC_AT] ?: 0L,
+      lastRatesSyncSource = prefs[Keys.RATES_LAST_SYNC_SOURCE],
+      lastRatesSyncError = prefs[Keys.RATES_LAST_SYNC_ERROR],
+      lastRatesSyncCodes = prefs[Keys.RATES_LAST_SYNC_CODES]
+        ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
     )
   }
 
@@ -72,12 +90,41 @@ class AppPreferencesDataStore(context: Context) {
     }
   }
 
+  suspend fun setRatesAutoUpdateEnabled(enabled: Boolean) {
+    dataStore.edit { prefs ->
+      prefs[Keys.RATES_AUTO_UPDATE_ENABLED] = enabled
+    }
+  }
+
+  suspend fun recordRatesSync(
+    atEpochMillis: Long,
+    source: String,
+    codes: List<String>,
+    error: String?,
+  ) {
+    dataStore.edit { prefs ->
+      prefs[Keys.RATES_LAST_SYNC_AT] = atEpochMillis
+      prefs[Keys.RATES_LAST_SYNC_SOURCE] = source
+      prefs[Keys.RATES_LAST_SYNC_CODES] = codes.joinToString(",")
+      if (error == null) {
+        prefs.remove(Keys.RATES_LAST_SYNC_ERROR)
+      } else {
+        prefs[Keys.RATES_LAST_SYNC_ERROR] = error
+      }
+    }
+  }
+
   suspend fun resetAllWorkspaceData() {
     dataStore.edit { prefs ->
       prefs[Keys.ONBOARDING_COMPLETED] = false
       prefs[Keys.ACTIVE_BUSINESS_ID] = 0L
       prefs[Keys.ACTIVE_USER_ID] = 0L
       prefs[Keys.LAST_BACKUP_TIMESTAMP] = 0L
+      prefs[Keys.RATES_AUTO_UPDATE_ENABLED] = false
+      prefs[Keys.RATES_LAST_SYNC_AT] = 0L
+      prefs.remove(Keys.RATES_LAST_SYNC_SOURCE)
+      prefs.remove(Keys.RATES_LAST_SYNC_ERROR)
+      prefs.remove(Keys.RATES_LAST_SYNC_CODES)
     }
   }
 }

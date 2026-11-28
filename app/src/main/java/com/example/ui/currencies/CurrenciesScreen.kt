@@ -130,6 +130,14 @@ fun CurrenciesScreen(
           }
         }
 
+        item {
+          RatesElToqueCard(
+            state = state,
+            onRefreshNow = { viewModel.refreshRatesNow() },
+            onAutoUpdateChange = { enabled -> viewModel.setAutoUpdateEnabled(enabled) },
+          )
+        }
+
         items(state.rates, key = { it.currencyCode }) { rate ->
           Card(
             shape = MaterialTheme.shapes.medium,
@@ -294,4 +302,108 @@ private fun CurrencyRateFormDialog(
       TextButton(onClick = onDismiss) { Text("Cancelar") }
     },
   )
+}
+
+/**
+ * Tarjeta de tasas automáticas desde elTOQUE (mercado informal de Cuba).
+ * Función con licencia: sin licencia activa el botón y el interruptor
+ * aparecen bloqueados, con el motivo. La actualización manual y la
+ * automática solo se ejecutan con licencia; sin internet o sin licencia,
+ * las tasas manuales siguen funcionando como siempre.
+ */
+@Composable
+private fun RatesElToqueCard(
+  state: CurrenciesUiState,
+  onRefreshNow: () -> Unit,
+  onAutoUpdateChange: (Boolean) -> Unit,
+) {
+  Card(
+    shape = MaterialTheme.shapes.large,
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    modifier = Modifier.fillMaxWidth().testTag("rates_eltoque_card"),
+  ) {
+    Column(
+      modifier = Modifier.padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(Icons.Filled.CurrencyExchange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text("Tasas automáticas — elTOQUE", style = MaterialTheme.typography.titleMedium)
+      }
+      Text(
+        text = "Tasas de referencia del mercado informal (USD y EUR, y MLC si está disponible), publicadas por elTOQUE. No son la tasa oficial.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      if (state.lastSyncAt > 0L) {
+        val sourceLabel = when (state.lastSyncSource) {
+          "AUTOMATIC" -> "automática"
+          "MANUAL" -> "manual"
+          else -> "elTOQUE"
+        }
+        val codes = state.lastSyncCodes.ifEmpty { listOf("USD", "EUR") }
+        Text(
+          text = "Actualizado ${formatRelativeTime(state.lastSyncAt)} · Fuente: elTOQUE ($sourceLabel) · ${codes.joinToString(", ")}",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.testTag("rates_last_sync"),
+        )
+      } else {
+        Text(
+          text = "Aún no se han actualizado las tasas desde elTOQUE.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+      if (state.lastSyncError != null) {
+        Text(
+          text = "Último error: ${state.lastSyncError}",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.error,
+        )
+      }
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(
+          text = "Actualización automática cada hora",
+          style = MaterialTheme.typography.bodyMedium,
+          modifier = Modifier.weight(1f),
+        )
+        Switch(
+          checked = state.autoUpdateEnabled,
+          onCheckedChange = onAutoUpdateChange,
+          enabled = state.licenseActive,
+          modifier = Modifier.testTag("rates_auto_switch"),
+        )
+      }
+      Button(
+        onClick = onRefreshNow,
+        enabled = state.licenseActive && !state.isSyncing,
+        modifier = Modifier.fillMaxWidth().testTag("rates_refresh_now"),
+      ) {
+        Text(if (state.isSyncing) "Actualizando…" else "Actualizar ahora")
+      }
+      if (!state.licenseActive) {
+        Text(
+          text = "Requiere licencia activa. Cuando actives tu licencia, esta función se desbloqueará. Mientras tanto, las tasas manuales siguen funcionando.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+  }
+}
+
+/** «hace 5 min», «hace 2 h», «hace 3 días» o «ahora mismo». */
+private fun formatRelativeTime(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
+  val diffMinutes = ((nowMillis - epochMillis) / 60_000L).coerceAtLeast(0L)
+  return when {
+    diffMinutes < 1 -> "ahora mismo"
+    diffMinutes < 60 -> "hace $diffMinutes min"
+    diffMinutes < 60 * 24 -> "hace ${diffMinutes / 60} h"
+    else -> "hace ${diffMinutes / (60 * 24)} días"
+  }
 }

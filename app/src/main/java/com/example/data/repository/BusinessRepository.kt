@@ -366,6 +366,13 @@ class BusinessRepository(
   fun observeAllExchangeRates(businessId: Long): Flow<List<ExchangeRateEntity>> =
     businessConfigDao.observeAllExchangeRates(businessId)
 
+  /** Moneda base del negocio (normalmente CUP); null si el negocio no existe. */
+  suspend fun getBusinessPrimaryCurrency(businessId: Long): String? =
+    businessConfigDao.getBusinessById(businessId)?.primaryCurrency
+
+  suspend fun getExchangeRate(businessId: Long, currencyCode: String): ExchangeRateEntity? =
+    businessConfigDao.getExchangeRateByCode(businessId, currencyCode.trim().uppercase())
+
   suspend fun saveCustomExchangeRate(
     businessId: Long,
     currencyCode: String,

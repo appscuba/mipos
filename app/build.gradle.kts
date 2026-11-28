@@ -121,6 +121,8 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
+  // Solo para la actualización automática de tasas cada hora (WorkManager).
+  implementation(libs.androidx.workmanager)
   implementation(libs.coil.compose)
   // implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
