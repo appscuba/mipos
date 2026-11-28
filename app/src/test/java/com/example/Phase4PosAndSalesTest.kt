@@ -46,7 +46,8 @@ class Phase4PosAndSalesTest {
   private var businessId: Long = 0L
 
   @Before
-  fun setUp() = runBlocking {
+  fun setUp() {
+    runBlocking {
     context = ApplicationProvider.getApplicationContext()
     db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
       .allowMainThreadQueries()
@@ -75,8 +76,12 @@ class Phase4PosAndSalesTest {
 
     // Every POS test starts with a valid cash session because sales now require
     // an explicit opening, exactly like the production workflow.
+    // NOTE: setUp must return Unit: JUnit rejects @Before methods that return
+    // a value, and openCashSession returns Long, so this call must not be the
+    // last expression of an expression-body function.
     com.example.data.repository.FinanceRepository(db)
       .openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+    }
   }
 
   @After

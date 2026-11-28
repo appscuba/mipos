@@ -76,6 +76,13 @@ class Phase6ReportsAndCurrenciesTest {
         allowNegativeStock = false,
       ),
     )
+
+    // Las ventas exigen una sesión de caja abierta (SaleRepository la requiere
+    // antes de confirmar cualquier venta), como en el flujo de producción.
+    // Se guarda en val para que setUp siga retornando Unit (JUnit exige que
+    // los métodos @Before sean void y openCashSession retorna Long).
+    val cashSessionId = financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+    check(cashSessionId > 0L)
   }
 
   @After

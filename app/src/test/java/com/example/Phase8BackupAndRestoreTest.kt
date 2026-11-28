@@ -111,6 +111,9 @@ class Phase8BackupAndRestoreTest {
       ),
     )
 
+    // La venta exige una sesión de caja abierta (SaleRepository la requiere).
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+
     saleRepo.confirmSale(
       ConfirmSaleRequest(
         businessId = businessId,
