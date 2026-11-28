@@ -1,19 +1,35 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reglas de extracción de datos (API 31+). Mismo criterio que backup_rules.xml:
+  la base de datos Room (ventas, clientes, deudas, hashes de PIN) no está
+  cifrada en reposo y NUNCA debe salir del dispositivo ni en copia en la nube
+  ni en transferencia a otro dispositivo. Los datos solo salen mediante los
+  respaldos cifrados (AES-256-GCM + contraseña) de la pantalla de Respaldos.
+  Ver: https://developer.android.com/about/versions/12/backup-restore#xml-changes
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Base de datos Room y sus archivos WAL/SHM -->
+        <exclude domain="database" path="gestor_comercial.db"/>
+        <exclude domain="database" path="gestor_comercial.db-wal"/>
+        <exclude domain="database" path="gestor_comercial.db-shm"/>
+        <!-- Preferencias DataStore (negocio activo, usuario activo, tema) -->
+        <exclude domain="file" path="datastore/gestor_comercial_prefs.preferences_pb"/>
+        <!-- Copias de respaldo internas (.gcbk) y logos restaurados -->
+        <exclude domain="file" path="manual_backups/"/>
+        <exclude domain="file" path="auto_backups/"/>
+        <exclude domain="file" path="restored_logos/"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Base de datos Room y sus archivos WAL/SHM -->
+        <exclude domain="database" path="gestor_comercial.db"/>
+        <exclude domain="database" path="gestor_comercial.db-wal"/>
+        <exclude domain="database" path="gestor_comercial.db-shm"/>
+        <!-- Preferencias DataStore -->
+        <exclude domain="file" path="datastore/gestor_comercial_prefs.preferences_pb"/>
+        <!-- Copias de respaldo internas (.gcbk) y logos restaurados -->
+        <exclude domain="file" path="manual_backups/"/>
+        <exclude domain="file" path="auto_backups/"/>
+        <exclude domain="file" path="restored_logos/"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

@@ -250,6 +250,11 @@ class SecurityRepository(
       require(PinHasher.verifyPin(pinInput.orEmpty(), target.pinHash)) {
         "PIN incorrecto para ${target.fullName}."
       }
+      // Migración explícita: un PIN verificado con el hash antiguo (SHA-256)
+      // se vuelve a guardar con PBKDF2 en el mismo inicio de sesión.
+      if (PinHasher.isLegacyHash(target.pinHash)) {
+        securityDao.updateUser(target.copy(pinHash = PinHasher.hashPin(pinInput.orEmpty())))
+      }
     }
     preferences.setActiveUser(target.id)
     lockOverride.value = false
@@ -274,6 +279,11 @@ class SecurityRepository(
     val ok = PinHasher.verifyPin(pinInput, user.pinHash)
     if (ok) {
       lockOverride.value = false
+      // Migración explícita: un PIN verificado con el hash antiguo (SHA-256)
+      // se vuelve a guardar con PBKDF2 al desbloquear la sesión.
+      if (PinHasher.isLegacyHash(user.pinHash)) {
+        securityDao.updateUser(user.copy(pinHash = PinHasher.hashPin(pinInput)))
+      }
       securityDao.insertAuditLog(
         AuditLogEntity(
           businessId = user.businessId,

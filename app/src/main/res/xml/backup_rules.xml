@@ -1,13 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reglas de Auto Backup (API < 31). La base de datos Room contiene ventas,
+  clientes, deudas y hashes de PIN sin cifrar en reposo, por lo que NUNCA
+  debe salir del dispositivo en la copia automática de Android. Los
+  respaldos de Stock+ se exportan cifrados (AES-256-GCM + contraseña)
+  desde la pantalla de Respaldos; esa es la única vía de salida de los datos.
+  Ver: https://developer.android.com/guide/topics/data/autobackup
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Base de datos Room y sus archivos WAL/SHM -->
+    <exclude domain="database" path="gestor_comercial.db"/>
+    <exclude domain="database" path="gestor_comercial.db-wal"/>
+    <exclude domain="database" path="gestor_comercial.db-shm"/>
+    <!-- Preferencias DataStore (negocio activo, usuario activo, tema) -->
+    <exclude domain="file" path="datastore/gestor_comercial_prefs.preferences_pb"/>
+    <!-- Copias de respaldo internas (.gcbk) y logos restaurados: no salen en la nube -->
+    <exclude domain="file" path="manual_backups/"/>
+    <exclude domain="file" path="auto_backups/"/>
+    <exclude domain="file" path="restored_logos/"/>
 </full-backup-content>

@@ -33,10 +33,21 @@ data class BackupFileEnvelope(
 /**
  * Offline AES-256-GCM encryption + PBKDF2WithHmacSHA256 + SHA-256 integrity checksum
  * for portable encrypted backups stored via Storage Access Framework.
+ *
+ * Security rules (fix/security-gaps):
+ * - Exporting a backup REQUIRES a user-chosen passphrase (min. 8 characters).
+ *   There is no default / fallback key: the old hard-coded backup secret was
+ *   removed, because it was published in this public repository.
+ * - Backups exported by older versions WITHOUT a passphrase can no longer be
+ *   restored: they were encrypted with that published key and must be treated
+ *   as compromised. Re-export them with a passphrase from the previous app
+ *   version before updating.
+ * - Key derivation uses 600_000 PBKDF2 iterations (OWASP recommendation for
+ *   PBKDF2-HMAC-SHA256).
  */
 object BackupCrypto {
-  private const val STANDARD_BACKUP_SECRET = "GestorComercial-Offline-Portable-Key-2026"
-  private const val PBKDF2_ITERATIONS = 10_000
+  private const val PBKDF2_ITERATIONS = 600_000
+  private const val MIN_PASSPHRASE_LENGTH = 8
   private const val KEY_LENGTH_BITS = 256
   private const val GCM_TAG_BITS = 128
 
@@ -49,8 +60,11 @@ object BackupCrypto {
     passphrase: String?,
   ): ByteArray {
     val cleanPass = passphrase?.trim().orEmpty()
-    val requiresPassphrase = cleanPass.isNotEmpty()
-    val secretChars = (if (requiresPassphrase) cleanPass else STANDARD_BACKUP_SECRET).toCharArray()
+    require(cleanPass.length >= MIN_PASSPHRASE_LENGTH) {
+      "El respaldo requiere una contraseña de al menos $MIN_PASSPHRASE_LENGTH caracteres. " +
+        "Sin contraseña no se puede exportar: los respaldos sin contraseña no son seguros."
+    }
+    val secretChars = cleanPass.toCharArray()
 
     val salt = ByteArray(16).also { secureRandom.nextBytes(it) }
     val iv = ByteArray(12).also { secureRandom.nextBytes(it) }
@@ -66,7 +80,7 @@ object BackupCrypto {
     val encoder = Base64.getEncoder()
     val envelope = BackupFileEnvelope(
       businessName = businessName,
-      requiresPassphrase = requiresPassphrase,
+      requiresPassphrase = true,
       saltBase64 = encoder.encodeToString(salt),
       ivBase64 = encoder.encodeToString(iv),
       payloadSha256 = checksum,
@@ -97,15 +111,16 @@ object BackupCrypto {
 
   fun decryptBackup(fileBytes: ByteArray, passphrase: String?): String {
     val envelope = inspectEnvelope(fileBytes)
-    val cleanPass = passphrase?.trim().orEmpty()
-    if (envelope.requiresPassphrase && cleanPass.isEmpty()) {
-      throw IllegalArgumentException("Este respaldo está protegido con contraseña. Ingrésala para continuar.")
+    if (!envelope.requiresPassphrase) {
+      throw IllegalArgumentException(
+        "Este respaldo se exportó sin contraseña con una clave conocida y ya no es seguro. " +
+          "No se puede restaurar. Re-exporta el respaldo con contraseña desde la versión " +
+          "anterior de la app antes de actualizar.",
+      )
     }
-
-    val secretChars = if (envelope.requiresPassphrase) {
-      cleanPass.toCharArray()
-    } else {
-      STANDARD_BACKUP_SECRET.toCharArray()
+    val cleanPass = passphrase?.trim().orEmpty()
+    if (cleanPass.isEmpty()) {
+      throw IllegalArgumentException("Este respaldo está protegido con contraseña. Ingrésala para continuar.")
     }
 
     val decoder = Base64.getDecoder()
@@ -114,7 +129,7 @@ object BackupCrypto {
     val cipherBytes = decoder.decode(envelope.cipherTextBase64)
 
     val plainBytes = try {
-      val keySpec = deriveKey(secretChars, salt)
+      val keySpec = deriveKey(cleanPass.toCharArray(), salt)
       val cipher = Cipher.getInstance("AES/GCM/NoPadding")
       cipher.init(Cipher.DECRYPT_MODE, keySpec, GCMParameterSpec(GCM_TAG_BITS, iv))
       cipher.doFinal(cipherBytes)

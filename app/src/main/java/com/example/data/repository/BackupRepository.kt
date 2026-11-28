@@ -186,14 +186,16 @@ class BackupRepository(
       "El respaldo no contiene ningún negocio válido."
     }
 
-    // Automatic pre-restore safety snapshot stored internally before replacing DB
+    // Automatic pre-restore safety snapshot stored internally before replacing DB.
+    // It is encrypted with the same passphrase the user typed for this restore:
+    // there is no passwordless export path anymore (see BackupCrypto).
     var safetyPath: String? = null
     val existingBusinesses = backupDao.getAllBusinesses()
     if (existingBusinesses.isNotEmpty()) {
       val targetSafetyBizId = if (currentBusinessId > 0L) currentBusinessId else existingBusinesses.first().id
       val safetyBytes = exportEncryptedBackup(
         businessId = targetSafetyBizId,
-        passphrase = null,
+        passphrase = passphrase,
         actorUserId = actorUserId,
         recordAuditAndTimestamp = false,
         context = context,

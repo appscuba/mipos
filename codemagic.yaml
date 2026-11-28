@@ -67,54 +67,36 @@ workflows:
         script: |
           set -e
           cd "${CM_BUILD_DIR:-.}"
-          if [ ! -s debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null \
-              || base64 -D -i debug.keystore.base64 -o debug.keystore 2>/dev/null \
-              || python3 -c "import base64, pathlib; pathlib.Path('debug.keystore').write_bytes(base64.b64decode(pathlib.Path('debug.keystore.base64').read_text().strip()))" \
-              || rm -f debug.keystore
-          fi
-          if [ ! -s debug.keystore ]; then
-            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
-            "$KEYTOOL_BIN" -genkeypair -noprompt \
-              -keystore debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 9.3.1
           fi
           chmod +x gradlew
 
+          # La firma release SOLO viene de secretos de Codemagic.
+          # Si falta el keystore o alguna contraseña, el build FALLA:
+          # nunca se genera un keystore ni se usa una contraseña por defecto.
+          # Configura en Codemagic (Environment variables, marcadas como seguras):
+          #   CM_KEYSTORE_PATH (o KEYSTORE_BASE64) y CM_KEYSTORE_PASSWORD
+          #   (o STORE_PASSWORD), y opcionalmente CM_KEY_PASSWORD (o KEY_PASSWORD).
           if [ -n "$CM_KEYSTORE_PATH" ] && [ -s "$CM_KEYSTORE_PATH" ]; then
             cp "$CM_KEYSTORE_PATH" my-upload-key.jks
-            RELEASE_STORE_PASS="${CM_KEYSTORE_PASSWORD:-${STORE_PASSWORD:-stockplus2026}}"
-            RELEASE_KEY_PASS="${CM_KEY_PASSWORD:-${KEY_PASSWORD:-$RELEASE_STORE_PASS}}"
           elif [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > my-upload-key.jks 2>/dev/null \
               || python3 -c "import base64, os, pathlib; pathlib.Path('my-upload-key.jks').write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'].strip()))"
-            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
-            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
-          elif [ -s my-upload-key.jks ]; then
-            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
-            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
           else
-            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
-            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
-            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
-            "$KEYTOOL_BIN" -genkeypair -noprompt \
-              -keystore my-upload-key.jks \
-              -storepass "$RELEASE_STORE_PASS" \
-              -alias upload \
-              -keypass "$RELEASE_KEY_PASS" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=StockPlus,O=PedritoTech,C=CU"
+            echo "ERROR: falta el keystore de release. Configura CM_KEYSTORE_PATH o KEYSTORE_BASE64 en los secretos de Codemagic." >&2
+            exit 1
+          fi
+
+          RELEASE_STORE_PASS="${CM_KEYSTORE_PASSWORD:-${STORE_PASSWORD:-}}"
+          RELEASE_KEY_PASS="${CM_KEY_PASSWORD:-${KEY_PASSWORD:-$RELEASE_STORE_PASS}}"
+          if [ -z "$RELEASE_STORE_PASS" ]; then
+            echo "ERROR: falta la contraseña del keystore. Configura CM_KEYSTORE_PASSWORD o STORE_PASSWORD en los secretos de Codemagic." >&2
+            exit 1
+          fi
+          if [ -z "$RELEASE_KEY_PASS" ]; then
+            echo "ERROR: falta la contraseña de la clave. Configura CM_KEY_PASSWORD o KEY_PASSWORD en los secretos de Codemagic." >&2
+            exit 1
           fi
           ls -lh my-upload-key.jks
           if [ -n "$CM_ENV" ]; then
@@ -127,21 +109,15 @@ workflows:
           set -e
           cd "${CM_BUILD_DIR:-.}"
           if [ ! -s my-upload-key.jks ]; then
-            KEYTOOL_BIN="$(command -v keytool || echo "${JAVA_HOME}/bin/keytool")"
-            RELEASE_STORE_PASS="${STORE_PASSWORD:-stockplus2026}"
-            RELEASE_KEY_PASS="${KEY_PASSWORD:-$RELEASE_STORE_PASS}"
-            "$KEYTOOL_BIN" -genkeypair -noprompt \
-              -keystore my-upload-key.jks \
-              -storepass "$RELEASE_STORE_PASS" \
-              -alias upload \
-              -keypass "$RELEASE_KEY_PASS" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=StockPlus,O=PedritoTech,C=CU"
+            echo "ERROR: no hay keystore de release. El paso de firma no lo generó: revisa los secretos de Codemagic." >&2
+            exit 1
+          fi
+          if [ -z "${STORE_PASSWORD:-${CM_KEYSTORE_PASSWORD:-}}" ]; then
+            echo "ERROR: falta la contraseña del keystore (STORE_PASSWORD / CM_KEYSTORE_PASSWORD)." >&2
+            exit 1
           fi
           export KEYSTORE_PATH="${KEYSTORE_PATH:-${CM_BUILD_DIR:-$(pwd)}/my-upload-key.jks}"
-          export STORE_PASSWORD="${STORE_PASSWORD:-${CM_KEYSTORE_PASSWORD:-stockplus2026}}"
+          export STORE_PASSWORD="${STORE_PASSWORD:-${CM_KEYSTORE_PASSWORD:-}}"
           export KEY_PASSWORD="${KEY_PASSWORD:-${CM_KEY_PASSWORD:-$STORE_PASSWORD}}"
           ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:bundleRelease
     artifacts:
