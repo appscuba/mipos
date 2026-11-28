@@ -111,6 +111,9 @@ class Phase8BackupAndRestoreTest {
       ),
     )
 
+    // La venta exige una sesión de caja abierta (SaleRepository la requiere).
+    financeRepo.openCashSession(businessId, BigDecimal.ZERO, "Apertura de prueba")
+
     saleRepo.confirmSale(
       ConfirmSaleRequest(
         businessId = businessId,
@@ -332,10 +335,10 @@ class Phase8BackupAndRestoreTest {
       userId = clerkId,
     )
 
-    // Export full backup
+    // Export full backup (la contraseña es obligatoria desde fix/security-gaps)
     val backupBytes = backupRepo.exportEncryptedBackup(
       businessId = businessId,
-      passphrase = null,
+      passphrase = "MiClaveSegura99",
       actorUserId = clerkId,
       context = context,
     )
@@ -351,7 +354,7 @@ class Phase8BackupAndRestoreTest {
     val summary = backupRepo.restoreEncryptedBackup(
       context = context,
       fileBytes = backupBytes,
-      passphrase = null,
+      passphrase = "MiClaveSegura99",
       currentBusinessId = 0L,
       actorUserId = null,
     )
@@ -390,5 +393,39 @@ class Phase8BackupAndRestoreTest {
     assertEquals("OPEN", restoredSession.status)
     val restoredCustomer = db.financeDao().getCustomerById(customerId)!!
     assertEquals(0, BigDecimal("800.00").compareTo(restoredCustomer.debtBalanceBase))
+  }
+
+  @Test
+  fun `exportar sin contrasena falla y un respaldo antiguo sin contrasena no se puede restaurar`() = runBlocking {
+    // Sin contraseña (nula, vacía o menor de 8 caracteres) no se puede exportar
+    for (badPass in listOf<String?>(null, "", "   ", "corta")) {
+      var failed = false
+      try {
+        backupRepo.exportEncryptedBackup(businessId, badPass, context = context)
+      } catch (_: IllegalArgumentException) {
+        failed = true
+      }
+      assertTrue("exportar con contraseña '$badPass' debería fallar", failed)
+    }
+
+    // Un respaldo antiguo exportado sin contraseña (requiresPassphrase=false)
+    // ya no se puede restaurar: se cifraba con una clave publicada.
+    val legacyEnvelope = com.example.core.security.BackupFileEnvelope(
+      businessName = "Negocio Original",
+      requiresPassphrase = false,
+      saltBase64 = java.util.Base64.getEncoder().encodeToString(ByteArray(16)),
+      ivBase64 = java.util.Base64.getEncoder().encodeToString(ByteArray(12)),
+      payloadSha256 = "00",
+      cipherTextBase64 = java.util.Base64.getEncoder().encodeToString(ByteArray(16)),
+    )
+    val legacyBytes = kotlinx.serialization.json.Json
+      .encodeToString(legacyEnvelope).toByteArray(Charsets.UTF_8)
+    var legacyFailed = false
+    try {
+      backupRepo.restoreEncryptedBackup(context, legacyBytes, null, businessId)
+    } catch (_: IllegalArgumentException) {
+      legacyFailed = true
+    }
+    assertTrue(legacyFailed)
   }
 }

@@ -160,8 +160,8 @@ fun BackupsScreen(
               OutlinedTextField(
                 value = exportPassphrase,
                 onValueChange = { exportPassphrase = it },
-                label = { Text("Contraseña de cifrado (opcional)") },
-                placeholder = { Text("Déjala vacía para cifrado portátil automático") },
+                label = { Text("Contraseña de cifrado *") },
+                placeholder = { Text("Obligatoria (mín. 8 caracteres): protege tu respaldo") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth().testTag("backup_export_passphrase_input"),
@@ -171,7 +171,7 @@ fun BackupsScreen(
                   val fileStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date())
                   createDocumentLauncher.launch("stock_plus_$fileStamp.gcbk")
                 },
-                enabled = !state.isBusy,
+                enabled = !state.isBusy && exportPassphrase.isNotBlank(),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_export_saf_button"),
               ) {
@@ -181,7 +181,7 @@ fun BackupsScreen(
               }
               OutlinedButton(
                 onClick = { viewModel.exportInternalLocalCopy(context, exportPassphrase.ifBlank { null }) },
-                enabled = !state.isBusy,
+                enabled = !state.isBusy && exportPassphrase.isNotBlank(),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_export_local_button"),
               ) {

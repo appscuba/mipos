@@ -70,6 +70,8 @@ class Phase7SecurityAndAuditTest {
   fun `pin hasher verifica pin correcto rechaza incorrecto y gestiona roles propietario vs dependiente`() = runBlocking {
     val hash = PinHasher.hashPin("4821")
     assertFalse(hash.contains("4821"))
+    assertTrue(hash.startsWith("pbkdf2\$"))
+    assertFalse(PinHasher.isLegacyHash(hash))
     assertTrue(PinHasher.verifyPin("4821", hash))
     assertFalse(PinHasher.verifyPin("9999", hash))
 
@@ -122,5 +124,53 @@ class Phase7SecurityAndAuditTest {
     assertTrue(logs.any { it.action == "USER_CREATED" })
     assertTrue(logs.any { it.action == "USER_SWITCHED" })
     assertTrue(logs.any { it.action == "SESSION_UNLOCKED" })
+  }
+
+  @Test
+  fun `pin hasher usa PBKDF2 y migra hashes antiguos SHA-256 al iniciar sesion`() = runBlocking {
+    // Nuevo esquema: PBKDF2 con sal distinta en cada hash
+    val hashA = PinHasher.hashPin("4821")
+    val hashB = PinHasher.hashPin("4821")
+    assertTrue(hashA.startsWith("pbkdf2\$"))
+    assertTrue(hashA != hashB)
+    assertFalse(PinHasher.isLegacyHash(hashA))
+    assertTrue(PinHasher.verifyPin("4821", hashA))
+    assertFalse(PinHasher.verifyPin("9999", hashA))
+
+    // Un hash antiguo (SHA-256 de una pasada) sigue verificando, pero se marca legacy
+    val legacyHash = legacySha256Hash("4821")
+    assertTrue(PinHasher.isLegacyHash(legacyHash))
+    assertTrue(PinHasher.verifyPin("4821", legacyHash))
+    assertFalse(PinHasher.verifyPin("9999", legacyHash))
+
+    // Al cambiar de usuario con un PIN antiguo, el hash se migra a PBKDF2
+    val owner = db.securityDao().observeUsers(businessId).first().first()
+    val clerkId = securityRepo.createUser(
+      businessId = businessId,
+      fullName = "Luis Antiguo",
+      username = "luis",
+      roleCode = "CLERK",
+      pin = "1357",
+      actorUserId = owner.id,
+    )
+    val clerk = db.securityDao().getUserById(clerkId)!!
+    db.securityDao().updateUser(clerk.copy(pinHash = legacySha256Hash("1357")))
+    assertTrue(PinHasher.isLegacyHash(db.securityDao().getUserById(clerkId)!!.pinHash))
+
+    securityRepo.switchUser(businessId, clerkId, "1357")
+    val migrated = db.securityDao().getUserById(clerkId)!!
+    assertFalse(PinHasher.isLegacyHash(migrated.pinHash))
+    assertTrue(migrated.pinHash!!.startsWith("pbkdf2\$"))
+    assertTrue(PinHasher.verifyPin("1357", migrated.pinHash))
+  }
+
+  /** Reconstruye el formato del hash antiguo: SHA-256(sal + PIN) con sal de 16 bytes. */
+  private fun legacySha256Hash(pin: String): String {
+    val salt = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+    val md = java.security.MessageDigest.getInstance("SHA-256")
+    md.update(salt)
+    val digest = md.digest(pin.toByteArray(Charsets.UTF_8))
+    fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+    return "${salt.toHex()}:${digest.toHex()}"
   }
 }

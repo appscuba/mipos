@@ -44,6 +44,25 @@ class ExampleRobolectricTest {
   @get:Rule
   val ruleChain: RuleChain = RuleChain.outerRule(resetDbRule).around(composeTestRule)
 
+  // Las ventas exigen una sesión de caja diaria abierta (SaleRepository la
+  // requiere antes de confirmar cualquier venta). Sin ella el POS muestra el
+  // error y nunca aparece el comprobante. Mismo flujo que el test de fases 5-8.
+  private fun abrirCajaDiaria() {
+    composeTestRule.onNodeWithTag("top_bar_menu_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("drawer_cash_register").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("drawer_cash_register").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_opening_amount_input").fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag("cash_opening_amount_input").performTextInput("1000")
+    composeTestRule.onNodeWithTag("cash_open_button").performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.onAllNodesWithTag("cash_expected_amount").fetchSemanticsNodes().isNotEmpty()
+    }
+  }
+
   @Test
   fun `read string from context`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
@@ -234,6 +253,8 @@ class ExampleRobolectricTest {
         .fetchSemanticsNodes()
         .isNotEmpty()
     }
+
+    abrirCajaDiaria()
 
     // 1. Crear producto Arroz (10 lb = 5000 g, precio 550, costo 400)
     composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
@@ -464,6 +485,8 @@ class ExampleRobolectricTest {
       composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
     }
 
+    abrirCajaDiaria()
+
     // Crear producto por unidad
     composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -528,6 +551,8 @@ class ExampleRobolectricTest {
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
       composeTestRule.onAllNodesWithTag("home_business_name").fetchSemanticsNodes().isNotEmpty()
     }
+
+    abrirCajaDiaria()
 
     // 1. Inventario -> Categorías -> Editar y Eliminar
     composeTestRule.onNodeWithTag("nav_tab_inventory").performClick()
